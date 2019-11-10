@@ -6,7 +6,8 @@ Variables           list_and_dict_variable_file.py    DICT__inv_dict    ${EXP LI
 *** Variables ***
 @{EXP LIST}         1    2    ${3}
 @{EXP GENERATOR}    ${0}    ${1}    ${2}    ${3}    ${4}
-&{EXP DICT}         a=${1}    ${2}=b
+&{NESTED}           key=value
+&{EXP DICT}         a=${1}    ${2}=b    nested=${NESTED}
 @{EXP KEYS}         a    b    c    d    e    f    g    h    i    j
 
 *** Test Cases ***
@@ -26,11 +27,10 @@ List is list
 
 Dict is dotted
     Should Be Equal    ${DICT.a}    ${1}
+    Should Be Equal    ${DICT.nested.key}    value
     Should Be Equal    ${ORDERED.a}    ${97}
 
 Dict is ordered
-    Should Be Equal    @{ORDERED}[0]    a
-    Should Be Equal    @{ORDERED}[-1]    j
     ${keys} =    Create List    @{ORDERED}
     Should Be Equal    ${keys}    ${EXP KEYS}
 
@@ -46,8 +46,8 @@ Scalar list likes can be used as list
     Should Be Equal    ${list}    ${EXP LIST}
     ${list} =    Create List    @{SCALAR TUPLE}
     Should Be Equal    ${list}    ${EXP LIST}
-    Should Be Equal    @{SCALAR LIST}[0]    1
-    Should Be Equal    @{SCALAR TUPLE}[-1]    ${3}
+    Should Be Equal    ${SCALAR LIST}[0]    1
+    Should Be Equal    ${SCALAR TUPLE}[-1]    ${3}
 
 Scalar list likes are not converted to lists
     Should Not Be Equal    ${SCALAR TUPLE}    ${EXP LIST}
@@ -71,8 +71,9 @@ Failing list
 
 Failing list in for loop
     [Documentation]    FAIL STARTS: Resolving variable '\@{FAILING GENERATOR()}' failed: ZeroDivisionError:
-    :FOR    ${i}    IN    @{FAILING GENERATOR()}
-    \    Fail    Not executed
+    FOR    ${i}    IN    @{FAILING GENERATOR()}
+        Fail    Not executed
+    END
 
 Failing dict
     [Documentation]    FAIL Resolving variable '\&{FAILING DICT}' failed: Bang

@@ -25,9 +25,10 @@ Introduction
 ------------
 
 `Robot Framework <http://robotframework.org>`_ is implemented with `Python
-<http://python.org>`_ and supports also `Jython <http://jython.org>`_ (JVM) and
-`IronPython <http://ironpython.net>`_ (.NET). Before installing the framework,
-an obvious precondition_ is installing at least one of these interpreters.
+<http://python.org>`_ and supports also `Jython <http://jython.org>`_ (JVM),
+`IronPython <http://ironpython.net>`_ (.NET) and `PyPy <http://pypy.org>`_.
+Before installing the framework, an obvious precondition_ is installing at
+least one of these interpreters.
 
 Different ways to install Robot Framework itself are listed below and explained
 more thoroughly in the subsequent sections.
@@ -71,9 +72,8 @@ Preconditions
 -------------
 
 Robot Framework is supported on Python_ (both Python 2 and Python 3), Jython_
-(JVM) and IronPython_ (.NET) and runs also on `PyPy <http://pypy.org>`_.
-The interpreter you want to use should be installed before installing the
-framework itself.
+(JVM) and IronPython_ (.NET) and PyPy_. The interpreter you want to use should
+be installed before installing the framework itself.
 
 Which interpreter to use depends on the needed test libraries and test
 environment in general. Some libraries use tools or modules that only work
@@ -118,13 +118,9 @@ installer and get more information about the installation process and Python
 in general.
 
 Robot Framework 3.0 supports Python 2.6, 2.7, 3.3 and newer, but the plan is
-to `drop Python 2.6 support in RF 3.1`__. If you need to use older versions,
-Robot Framework 2.5-2.8 support Python 2.5 and Robot Framework 2.0-2.1
-support Python 2.3 and 2.4.
-
-On Windows it is recommended to install Python to all users and to run the
-installer as an administrator. Additionally, environment variable
-``PYTHONCASEOK`` must not be set.
+to `drop Python 2.6 and 3.3 support in RF 3.1`__. If you need to use older
+versions, Robot Framework 2.5-2.8 support Python 2.5 and Robot Framework
+2.0-2.1 support Python 2.3 and 2.4.
 
 After installing Python, you probably still want to configure PATH_ to make
 Python itself as well as the ``robot`` and ``rebot`` `runner scripts`_
@@ -165,19 +161,43 @@ IronPython installation
 
 IronPython_ allows running Robot Framework on the `.NET platform
 <http://www.microsoft.com/net>`__ and interacting with C# and other .NET
-languages and APIs. Only IronPython 2.7 is supported.
+languages and APIs. Only IronPython 2.7 is supported in general and
+IronPython 2.7.9 or newer is highly recommended.
 
-When using IronPython, an additional dependency is installing
-`elementtree <http://effbot.org/downloads/#elementtree>`__
-module 1.2.7 preview release. This is required because the ``elementtree``
-module distributed with IronPython is
-`broken <https://github.com/IronLanguages/main/issues/968>`__. You can install
-the package by downloading the source distribution, unzipping it, and running
-``ipy setup.py install`` on the command prompt in the created directory.
+If not using IronPython 2.7.9 or newer and Robot Framework 3.1 or newer,
+an additional requirement is installing
+`ElementTree <http://effbot.org/downloads/#elementtree>`__
+module 1.2.7 preview release. This is required because the ElementTree
+module distributed with older IronPython versions was broken. Once you
+have `pip activated for IronPython`__, you can easily install ElementTree
+using this command:
+
+.. sourcecode:: bash
+
+    ipy -m pip install http://effbot.org/media/downloads/elementtree-1.2.7-20070827-preview.zip
+
+Alternatively you can download the zip package, extract it, and install it by
+running ``ipy setup.py install`` on the command prompt in the created directory.
 
 After installing IronPython, you probably still want to configure PATH_ to make
 IronPython itself as well as the ``robot`` and ``rebot`` `runner scripts`_
 executable on the command line.
+
+__ `Installing pip for IronPython`_
+
+PyPy installation
+~~~~~~~~~~~~~~~~~
+
+PyPy_ is an alternative implementation of the Python language with both Python 2
+and Python 3 compatible versions available. Its main advantage over the
+standard Python implementation is that it can be faster and use less memory,
+but this depends on the context where and how it is used. If execution speed
+is important, at least testing PyPY is probably a good idea.
+
+Installing PyPy is a straightforward procedure and you can find both installers
+and installation instructions at http://pypy.org. After installation you
+probably still want to configure PATH_ to make PyPy itself as well as the
+``robot`` and ``rebot`` `runner scripts`_ executable on the command line.
 
 Configuring ``PATH``
 ~~~~~~~~~~~~~~~~~~~~
@@ -278,10 +298,15 @@ alternatives such as `Buildout <http://buildout.org>`__ and `easy_install
 only cover using pip, but other package managers ought be able to install
 Robot Framework as well.
 
-Latest Python, Jython and IronPython versions contain pip bundled in. Which
-versions contain it and how to possibly activate it is discussed in sections
-below. See pip_ project pages if for latest installation instructions if you
-need to install it.
+Latest Python, Jython, IronPython and PyPy versions contain pip bundled in.
+Which versions contain it and how to possibly activate it is discussed in
+sections below. See pip_ project pages if for the latest installation
+instructions if you need to install it.
+
+.. note:: Robot Framework 3.1 and newer are distributed as `wheels
+          <http://pythonwheels.com>`_, but earlier versions are available only
+          as source distributions in tar.gz format. It is possible to install
+          both using pip, but installing wheels is a lot faster.
 
 .. note:: Only Robot Framework 2.7 and newer can be installed using pip. If you
           need an older version, you must use other installation approaches.
@@ -292,7 +317,8 @@ Installing pip for Python
 Starting from Python 2.7.9, the standard Windows installer by default installs
 and activates pip. Assuming you also have configured PATH_ and possibly
 set https_proxy_, you can run `pip install robotframework` right after
-Python installation.
+Python installation. With Python 3.4 and newer pip is officially part of the
+interpreter and should be automatically available.
 
 Outside Windows and with older Python versions you need to install pip yourself.
 You may be able to do it using system package managers like Apt or Yum on Linux,
@@ -331,15 +357,15 @@ is executing the ``pip`` module using Jython directly:
 Installing pip for IronPython
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-IronPython contains bundled pip starting from `version 2.7.5`__. Similarly as
-with Jython, it needs to be activated first:
+IronPython 2.7.5 and newer contain pip bundled in. With IronPython 2.7.9 and
+newer pip also works out-of-the-box, but with earlier versions it needs to be
+activated with `ipy -m ensurepip` similarly as with Jython.
 
-.. sourcecode:: bash
-
-    ipy -X:Frames -m ensurepip
-
-Notice that with IronPython `-X:Frames` command line option is needed both
-when activating and when using pip.
+With IronPython 2.7.7 and earlier you need to use `-X:Frames` command line
+option when activating pip like `ipy -X:Frames -m ensurepip` and also
+when using it. Prior to IronPython 2.7.9 there were problems creating
+possible start-up scripts when installing modules. Using IronPython 2.7.9
+is highly recommended.
 
 IronPython installs pip into :file:`<IronPythonInstallation>/Scripts` directory.
 Does running `pip install robotframework` actually use it or possibly some
@@ -348,17 +374,33 @@ is executing the ``pip`` module using IronPython directly:
 
 .. sourcecode:: bash
 
-    ipy -X:Frames -m pip install robotframework
+    ipy -m pip install robotframework
 
-IronPython versions prior to 2.7.5 do not officially support pip.
+Installing pip for PyPy
+~~~~~~~~~~~~~~~~~~~~~~~
 
-__ http://blog.ironpython.net/2014/12/pip-in-ironpython-275.html
+Also PyPy contains pip bundled in. It is not activated by default, but it can
+be activated similarly as with the other interpreters:
+
+.. sourcecode:: bash
+
+    pypy -m ensurepip
+    pypy3 -m ensurepip
+
+If you have multiple Python versions with pip installed, the version that is
+used when the ``pip`` command is executed depends on which pip is first in the
+PATH_. An alternative is executing the ``pip`` module using PyPy directly:
+
+.. sourcecode:: bash
+
+    pypy -m pip
+    pypy3 -m pip
 
 Using pip
 ~~~~~~~~~
 
 Once you have pip_ installed, and have set https_proxy_ if you are behind
-a proxy, using it on the command line is very easy. The easiest way to use
+a proxy, using pip on the command line is very easy. The easiest way to use
 pip is by letting it find and download packages it installs from the
 `Python Package Index (PyPI)`__, but it can also install packages
 downloaded from the PyPI separately. The most common usages are shown below
@@ -368,7 +410,7 @@ __ PyPI_
 
 .. sourcecode:: bash
 
-    # Install the latest version
+    # Install the latest version (does not upgrade)
     pip install robotframework
 
     # Upgrade to the latest version
@@ -379,6 +421,9 @@ __ PyPI_
 
     # Install separately downloaded package (no network connection needed)
     pip install robotframework-3.0.tar.gz
+
+    # Install latest (possibly unreleased) code directly from GitHub
+    pip install https://github.com/robotframework/robotframework/archive/master.zip
 
     # Uninstall
     pip uninstall robotframework
@@ -395,6 +440,17 @@ specify the version explicitly or use the :option:`--pre` option:
     # Upgrade to the latest version even if it is a pre-release
     pip install --pre --upgrade robotframework
 
+Notice that on Windows pip, by default, does not recreate `robot.bat and
+rebot.bat`__ start-up scripts if the same Robot Framework version is installed
+multiple times using the same Python version. This mainly causes problems
+when `using virtual environments`_, but is something to take into account
+also if doing custom installations using pip. A workaround if using the
+``--no-cache-dir`` option like ``pip install --no-cache-dir robotframework``.
+Alternatively it is possible to ignore the start-up scripts altogether and
+just use ``python -m robot`` and ``python -m robot.rebot`` commands instead.
+
+__ `Executing Robot Framework`_
+
 Installing from source
 ----------------------
 
@@ -405,13 +461,12 @@ the procedure is actually pretty straightforward.
 Getting source code
 ~~~~~~~~~~~~~~~~~~~
 
-You typically get the source by downloading a *source distribution package*
-in `.tar.gz` format. Newer packages are available on PyPI_, but Robot Framework
-2.8.1 and older can be found from the old `Google Code download page
-<https://code.google.com/p/robotframework/downloads/list?can=1>`_.
-Once you have downloaded the package, you need to extract it somewhere and,
-as a result, you get a directory named `robotframework-<version>`. The
-directory contains the source code and scripts needed for installing it.
+You typically get the source code by downloading a *source distribution* from
+PyPI_. Starting from Robot Framework 3.1 the source distribution is a zip
+package and with earlier versions it is in tar.gz format. Once you have
+downloaded the package, you need to extract it somewhere and, as a result,
+you get a directory named `robotframework-<version>`. The directory contains
+the source code and a ``setup.py`` script needed for installing it.
 
 An alternative approach for getting the source code is cloning project's
 `GitHub repository`_ directly. By default you will get the latest code, but
@@ -429,6 +484,7 @@ it from the command line using any of the supported interpreters:
    python setup.py install
    jython setup.py install
    ipy setup.py install
+   pypy setup.py install
 
 The ``setup.py`` script accepts several arguments allowing, for example,
 installation into a non-default location that does not require administrative
@@ -545,12 +601,19 @@ undo those changes separately.
 Upgrading
 ---------
 
-If you are using pip_, upgrading to a new version required either using
-the `--upgrade` option or specifying the version to use explicitly:
+If you are using pip_, upgrading to a new version requires either specifying
+the version explicitly or using the :option:`--upgrade` option. If upgrading
+to a preview release, :option:`--pre` option is needed as well.
 
 .. sourcecode:: bash
 
+   # Upgrade to the latest stable version. This is the most common method.
    pip install --upgrade robotframework
+
+   # Upgrade to the latest version even if it would be a preview release.
+   pip install --upgrade --pre robotframework
+
+   # Upgrade to the specified version.
    pip install robotframework==2.9.2
 
 When using pip, it automatically uninstalls previous versions before
@@ -610,7 +673,7 @@ Framework 3.0, but the older versions support ``python -m robot.run``.
 The latter must also be used with Python 2.6.
 
 Post-processing outputs using the same approach works too, but the module to
-run is ``robot.rebot``:
+execute is ``robot.rebot``:
 
 .. sourcecode:: bash
 
@@ -622,7 +685,8 @@ Executing installed ``robot`` directory
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you know where Robot Framework is installed, you can also execute the
-installed :file:`robot` directory or :file:`run.py` file inside it directly:
+installed :file:`robot` directory or the :file:`run.py` file inside it
+directly:
 
 .. sourcecode:: bash
 
@@ -641,6 +705,28 @@ way too:
 
 Executing Robot Framework this way is especially handy if you have done
 a `manual installation`_.
+
+Using virtual environments
+--------------------------
+
+Python `virtual environments`__ allow Python packages to be installed in
+an isolated location for a particular system or application, rather than
+installing all packages into the same global location. Virtual environments
+can be created using the virtualenv__ tool or, starting from Python 3.3,
+using the standard venv__ module.
+
+Robot Framework in general works fine with virtual environments. The only
+problem is that when `using pip`_ on Windows, ``robot.bat`` and ``rebot.bat``
+scripts are not recreated by default. This means that if Robot Framework is
+installed into multiple virtual environments, the ``robot.bat`` and
+``rebot.bat`` scripts in the latter ones refer to the Python installation
+in the first virtual environment. A workaround is using the ``--no-cache-dir``
+option when installing. Alternatively the start-up scripts can be ignored
+and ``python -m robot`` and ``python -m robot.rebot`` commands used instead.
+
+__ https://packaging.python.org/installing/#creating-virtual-environments
+__ https://virtualenv.pypa.io
+__ https://docs.python.org/3/library/venv.html
 
 .. These aliases need an explicit target to work in GitHub
 .. _precondition: `Preconditions`_

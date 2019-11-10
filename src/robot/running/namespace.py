@@ -13,22 +13,22 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import os
 import copy
+import os
+from collections import OrderedDict
 from itertools import chain
 
-from robot.errors import DataError
+from robot.errors import DataError, KeywordError
 from robot.libraries import STDLIBS
+from robot.model import Import
 from robot.output import LOGGER, Message
-from robot.parsing.settings import Library, Variables, Resource
-from robot.utils import (eq, find_file, is_string, OrderedDict, printable_name,
-                         seq2str2, RecommendationFinder)
+from robot.utils import (RecommendationFinder, eq, find_file, is_string,
+                         printable_name, seq2str2)
 
+from .importer import ImportCache, Importer
+from .runkwregister import RUN_KW_REGISTER
 from .usererrorhandler import UserErrorHandler
 from .userkeyword import UserLibrary
-from .importer import Importer, ImportCache
-from .runkwregister import RUN_KW_REGISTER
-
 
 IMPORTER = Importer()
 
@@ -74,7 +74,7 @@ class Namespace(object):
         action(import_setting)
 
     def import_resource(self, name, overwrite=True):
-        self._import_resource(Resource(None, name), overwrite=overwrite)
+        self._import_resource(Import('Resource', name), overwrite=overwrite)
 
     def _import_resource(self, import_setting, overwrite=False):
         path = self._resolve_name(import_setting)
@@ -99,7 +99,7 @@ class Namespace(object):
                             "a resource file." % path)
 
     def import_variables(self, name, args, overwrite=False):
-        self._import_variables(Variables(None, name, args), overwrite)
+        self._import_variables(Import('Variables', name, args), overwrite)
 
     def _import_variables(self, import_setting, overwrite=False):
         path = self._resolve_name(import_setting)
@@ -118,8 +118,8 @@ class Namespace(object):
             LOGGER.info("%s already imported by suite '%s'"
                         % (msg, self._suite_name))
 
-    def import_library(self, name, args=None, alias=None, notify=True):
-        self._import_library(Library(None, name, args=args, alias=alias),
+    def import_library(self, name, args=(), alias=None, notify=True):
+        self._import_library(Import('Library', name, args, alias),
                              notify=notify)
 
     def _import_library(self, import_setting, notify=True):
@@ -155,14 +155,6 @@ class Namespace(object):
 
     def _get_name(self, name, import_setting):
         if import_setting.type == 'Library' and not self._is_library_by_path(name):
-            if ' ' in name:
-                # TODO: Remove support for extra spaces in name in RF 3.1.
-                # https://github.com/robotframework/robotframework/issues/2264
-                warning = ("Importing library with extra spaces in name like "
-                           "'%s' is deprecated. Remove spaces and use '%s' "
-                           "instead." % (name, name.replace(' ', '')))
-                import_setting.report_invalid_syntax(warning, 'WARN')
-                name = name.replace(' ', '')
             return name
         return find_file(name, import_setting.directory,
                          file_type=import_setting.type)
@@ -196,10 +188,12 @@ class Namespace(object):
     def start_suite(self):
         self.variables.start_suite()
 
-    def end_suite(self):
-        self.variables.end_suite()
+    def end_suite(self, suite):
         for lib in self.libraries:
             lib.end_suite()
+        if not suite.parent:
+            IMPORTER.close_global_library_listeners()
+        self.variables.end_suite()
 
     def start_user_keyword(self):
         self.variables.start_keyword()
@@ -222,8 +216,8 @@ class Namespace(object):
     def get_runner(self, name):
         try:
             return self._kw_store.get_runner(name)
-        except DataError as err:
-            return UserErrorHandler(name, err.message)
+        except DataError as error:
+            return UserErrorHandler(error, name)
 
 
 class KeywordStore(object):
@@ -274,15 +268,15 @@ class KeywordStore(object):
                                              self.resources)
         recommendations = finder.recommend_similar_keywords(name)
         msg = finder.format_recommendations(msg, recommendations)
-        raise DataError(msg)
+        raise KeywordError(msg)
 
     def _get_runner(self, name):
-        runner = None
         if not name:
             raise DataError('Keyword name cannot be empty.')
         if not is_string(name):
             raise DataError('Keyword name must be a string.')
-        if '.' in name:
+        runner = self._get_runner_from_test_case_file(name)
+        if not runner and '.' in name:
             runner = self._get_explicit_runner(name)
         if not runner:
             runner = self._get_implicit_runner(name)
@@ -291,8 +285,9 @@ class KeywordStore(object):
         return runner
 
     def _get_bdd_style_runner(self, name):
+        lower = name.lower()
         for prefix in ['given ', 'when ', 'then ', 'and ', 'but ']:
-            if name.lower().startswith(prefix):
+            if lower.startswith(prefix):
                 runner = self._get_runner(name[len(prefix):])
                 if runner:
                     runner = copy.copy(runner)
@@ -301,19 +296,16 @@ class KeywordStore(object):
         return None
 
     def _get_implicit_runner(self, name):
-        for method in [self._get_runner_from_test_case_file_user_keywords,
-                       self._get_runner_from_resource_file_user_keywords,
-                       self._get_runner_from_library_keywords]:
-            runner = method(name)
-            if runner:
-                return runner
-        return None
+        runner = self._get_runner_from_resource_files(name)
+        if not runner:
+            runner = self._get_runner_from_libraries(name)
+        return runner
 
-    def _get_runner_from_test_case_file_user_keywords(self, name):
+    def _get_runner_from_test_case_file(self, name):
         if name in self.user_keywords.handlers:
             return self.user_keywords.handlers.create_runner(name)
 
-    def _get_runner_from_resource_file_user_keywords(self, name):
+    def _get_runner_from_resource_files(self, name):
         found = [lib.handlers.create_runner(name)
                  for lib in self.resources.values()
                  if name in lib.handlers]
@@ -325,7 +317,7 @@ class KeywordStore(object):
             return found[0]
         self._raise_multiple_keywords_found(name, found)
 
-    def _get_runner_from_library_keywords(self, name):
+    def _get_runner_from_libraries(self, name):
         found = [lib.handlers.create_runner(name) for lib in self.libraries.values()
                  if name in lib.handlers]
         if not found:
@@ -346,7 +338,7 @@ class KeywordStore(object):
         return runners
 
     def _filter_stdlib_runner(self, runner1, runner2):
-        stdlibs_without_remote = STDLIBS - set(['Remote'])
+        stdlibs_without_remote = STDLIBS - {'Remote'}
         if runner1.library.orig_name in stdlibs_without_remote:
             standard, custom = runner1, runner2
         elif runner2.library.orig_name in stdlibs_without_remote:
@@ -399,7 +391,7 @@ class KeywordStore(object):
         if implicit:
             error += ". Give the full name of the keyword you want to use"
         names = sorted(runner.longname for runner in found)
-        raise DataError('\n    '.join([error+':'] + names))
+        raise KeywordError('\n    '.join([error+':'] + names))
 
 
 class KeywordRecommendationFinder(object):

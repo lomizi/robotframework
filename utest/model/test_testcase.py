@@ -1,14 +1,10 @@
 import unittest
-from robot.utils.asserts import (assert_equal, assert_raises,
+from robot.utils.asserts import (assert_equal, assert_not_equal, assert_raises,
                                  assert_raises_with_msg, assert_true)
 
 from robot.model.testcase import TestCase, TestCases
 from robot.model import TestSuite
-from robot.utils import PY2, PY3
-
-
-if PY3:
-    unicode = str
+from robot.utils import PY2, unicode
 
 
 class TestTestCase(unittest.TestCase):
@@ -44,6 +40,32 @@ class TestTestCase(unittest.TestCase):
 
     def test_slots(self):
         assert_raises(AttributeError, setattr, self.test, 'attr', 'value')
+
+    def test_copy(self):
+        test = self.test
+        copy = test.copy()
+        assert_equal(test.name, copy.name)
+        copy.name += 'copy'
+        assert_not_equal(test.name, copy.name)
+        assert_equal(id(test.tags), id(copy.tags))
+
+    def test_copy_with_attributes(self):
+        test = TestCase(name='Orig', doc='Orig', tags=['orig'])
+        copy = test.copy(name='New', doc='New', tags=['new'])
+        assert_equal(copy.name, 'New')
+        assert_equal(copy.doc, 'New')
+        assert_equal(list(copy.tags), ['new'])
+
+    def test_deepcopy_(self):
+        test = self.test
+        copy = test.deepcopy()
+        assert_equal(test.name, copy.name)
+        assert_not_equal(id(test.tags), id(copy.tags))
+
+    def test_deepcopy_with_attributes(self):
+        copy = TestCase(name='Orig').deepcopy(name='New', doc='New')
+        assert_equal(copy.name, 'New')
+        assert_equal(copy.doc, 'New')
 
 
 class TestStringRepresentation(unittest.TestCase):

@@ -20,15 +20,20 @@ import sys
 from robot.errors import DataError
 
 from .encoding import system_decode
-from .platform import WINDOWS, PY2
+from .platform import IRONPYTHON, PY_VERSION, PY2, WINDOWS
 from .robottypes import is_unicode
+from .unic import unic
 
 
-if sys.version_info < (2,7):
+if IRONPYTHON and PY_VERSION == (2, 7, 8):
+    # https://github.com/IronLanguages/ironpython2/issues/371
     def _abspath(path):
-        if WINDOWS and os.path.splitunc(path)[0]:
-            return os.path.abspath(path)
-        return os.path.abspath(os.path.join(os.getcwdu(), path))
+        if os.path.isabs(path):
+            if not os.path.splitdrive(path)[0]:
+                drive = os.path.splitdrive(os.getcwd())[0]
+                return drive + path
+            return path
+        return os.path.abspath(path)
 else:
     _abspath = os.path.abspath
 
@@ -52,13 +57,15 @@ else:
 def normpath(path, case_normalize=False):
     """Replacement for os.path.normpath with some enhancements.
 
-    1. Non-Unicode paths are converted to Unicode using file system encoding.
-    2. Optionally lower-case paths on case-insensitive file systems.
+    1. Convert non-Unicode paths to Unicode using the file system encoding.
+    2. NFC normalize Unicode paths (affects mainly OSX).
+    3. Optionally lower-case paths on case-insensitive file systems.
        That includes Windows and also OSX in default configuration.
-    3. Turn ``c:`` into ``c:\\`` on Windows instead of keeping it as ``c:``.
+    4. Turn ``c:`` into ``c:\\`` on Windows instead of keeping it as ``c:``.
     """
     if not is_unicode(path):
         path = system_decode(path)
+    path = unic(path)  # Handles NFC normalization on OSX
     path = os.path.normpath(path)
     if case_normalize and CASE_INSENSITIVE_FILESYSTEM:
         path = path.lower()
@@ -74,8 +81,6 @@ def abspath(path, case_normalize=False):
     2. Optionally lower-case paths on case-insensitive file systems.
        That includes Windows and also OSX in default configuration.
     3. Turn ``c:`` into ``c:\\`` on Windows instead of ``c:\\current\\path``.
-    4. Handle non-ASCII characters on working directory with Python < 2.6.5:
-       http://bugs.python.org/issue3426
     """
     path = normpath(path, case_normalize)
     return normpath(_abspath(path), case_normalize)

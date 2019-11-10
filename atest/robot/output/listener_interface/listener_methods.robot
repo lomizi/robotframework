@@ -3,6 +3,9 @@ Suite Setup       Run Tests With Listeners
 Suite Teardown    Remove Listener Files
 Resource          listener_resource.robot
 
+*** Variables ***
+${LISTENER DIR}   ${DATADIR}/output/listeners
+
 *** Test Cases ***
 Listen All
     [Documentation]    Listener listening all methods. Method names with underscore.
@@ -56,14 +59,14 @@ Java Listener
 Correct Attributes To Listener Methods
     ${status} =    Log File    %{TEMPDIR}/${ATTR_TYPE_FILE}
     Check Stderr Does Not Contain    attributeverifyinglistener
-    Should Not Contain    ${status}    FAILED
-    Should Contain X Times    ${status}    PASSED    306
+    Should Contain X Times    ${status}    FAILED    0
+    Should Contain X Times    ${status}    PASSED    384
 
 Correct Attributes To Java Listener Methods
     [Tags]    require-jython
     ${status} =    Log File    %{TEMPDIR}/${JAVA_ATTR_TYPE_FILE}
     Check Stderr Does Not Contain    JavaAttributeVerifyingListener
-    Should Not Contain    ${status}    FAILED
+    Should Contain X Times    ${status}    FAILED    0
     Should Contain X Times    ${status}    PASSED    306
 
 Keyword Tags
@@ -71,7 +74,7 @@ Keyword Tags
     Should Contain X Times    ${status}    PASSED | tags: [force, keyword, tags]    6
 
 Suite And Test Counts
-    Run Tests    --listener listeners.SuiteAndTestCounts    misc/suites/sub*
+    Run Tests    --listener listeners.SuiteAndTestCounts    misc/suites/subsuites misc/suites/subsuites2
     Stderr Should Be Empty
 
 Suite Source
@@ -84,7 +87,7 @@ Keyword Type
 
 Suite And Test Counts With Java
     [Tags]    require-jython
-    Run Tests    --listener JavaSuiteAndTestCountListener    misc/suites/sub*
+    Run Tests    --listener JavaSuiteAndTestCountListener    misc/suites/subsuites misc/suites/subsuites2
     Stderr Should Be Empty
 
 Executing Keywords from Listeners
@@ -97,6 +100,24 @@ Test Template
     ${listener} =    Normalize Path    ${DATADIR}/output/listeners/verify_template_listener.py
     File Should Exist    ${listener}
     Run Tests    --listener ${listener}    output/listeners/test_template.robot
+    Stderr Should Be Empty
+
+Keyword Arguments Are Always Strings
+    ${result} =    Run Tests    --listener attributeverifyinglistener    output/listeners/keyword_argument_types.robot
+    Should Be Empty    ${result.stderr}
+    Check Test Tags    Run Keyword with already resolved non-string arguments in test data    1    2
+    Check Test Case    Run Keyword with non-string arguments in library
+    ${status} =    Log File    %{TEMPDIR}/${ATTR_TYPE_FILE}
+    Should Contain X Times    ${status}    FAILED    0
+    Should Contain X Times    ${status}    PASSED    211
+
+TimeoutError occurring during listener method is propagaged
+    [Documentation]    Timeouts can only occur inside `log_message`.
+    ...    Cannot reliable set timeouts to occur during it, so the listener
+    ...    emulates the situation by explicitly raising TimeoutError.
+    Run Tests    --listener ${LISTENER DIR}/timeouting_listener.py    output/listeners/timeouting_listener.robot
+    Check Test Case    Timeout in test case level
+    Check Test Case    Timeout inside user keyword
     Stderr Should Be Empty
 
 *** Keywords ***

@@ -80,12 +80,13 @@ class TestImports(unittest.TestCase):
 
     def test_import_non_existing_module(self):
         msg = ("Importing test library '{libname}' failed: "
-               "ImportError: No module named {quote}{modname}{quote}")
+               "{type}Error: No module named {quote}{modname}{quote}")
         quote = '' if PY2 else "'"
+        type = 'Import' if sys.version_info < (3, 6) else 'ModuleNotFound'
         for name in 'nonexisting', 'nonexi.sting':
             error = assert_raises(DataError, TestLibrary, name)
             expected = msg.format(libname=name, modname=name.split('.')[0],
-                                  quote=quote)
+                                  quote=quote, type=type)
             assert_equal(str(error).splitlines()[0], expected)
 
     def test_import_non_existing_class_from_existing_module(self):
@@ -182,6 +183,9 @@ class TestLibraryInit(unittest.TestCase):
 
     def test_library_with_metaclass(self):
         self._test_init_handler('newstyleclasses.MetaClassLibrary')
+
+    def test_library_with_zero_len(self):
+        self._test_init_handler('LenLibrary')
 
     def _test_init_handler(self, libname, args=None, min=0, max=0):
         lib = TestLibrary(libname, args)
@@ -450,11 +454,14 @@ class TestDynamicLibrary(unittest.TestCase):
 
     def test_get_keyword_doc_is_used_if_present(self):
         lib = TestLibrary('classes.ArgDocDynamicLibrary')
-        assert_equal(lib.handlers['No Arg'].doc, 'Keyword documentation for No Arg')
+        assert_equal(lib.handlers['No Arg'].doc,
+                     'Keyword documentation for No Arg')
+        assert_equal(lib.handlers['Multiline'].doc,
+                     'Multiline\nshort doc!\n\nBody\nhere.')
 
     def test_get_keyword_doc_and_args_are_ignored_if_not_callable(self):
         lib = TestLibrary('classes.InvalidAttributeDynamicLibrary')
-        assert_equal(len(lib.handlers), 5)
+        assert_equal(len(lib.handlers), 6)
         assert_equal(lib.handlers['No Arg'].doc, '')
         assert_handler_args(lib.handlers['No Arg'], 0, sys.maxsize)
 

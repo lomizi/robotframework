@@ -44,6 +44,9 @@ Embedded Arguments
     Check Log Message    ${tc.kws[0].msgs[0]}    arg
     Check Log Message    ${tc.kws[1].msgs[0]}    --args--
 
+Embedded Arguments With Library Having State
+    Check Test Case    ${TEST NAME}
+
 Arguments Containing Variables And Import Same Library Twice
     ${tc} =    Check Test Case    ${TEST NAME}
     Check Keyword Data    ${tc.kws[0]}    Param1.Parameters Should Be    args=1, 2
@@ -63,14 +66,14 @@ With Name Has No Effect If Not Second Last
 
 With Name After Normal Import
     ${tc} =    Check Test Case    ${TEST NAME}
-    Check Keyword Data    ${tc.kws[0]}    B2.Fail    args=This failure comes from B2!
+    Check Keyword Data    ${tc.kws[0]}    B2.Fail    args=This failure comes from B2!    status=FAIL
     Check Syslog Contains    Imported library 'BuiltIn' with name 'B2'
 
 Module Library
     ${tc} =    Check Test Case    ${TEST NAME}
     Check Keyword Data    ${tc.kws[0]}    MOD1.Argument    args=Hello
     Check Keyword Data    ${tc.kws[1]}    mod 2.Keyword From Submodule    \${s}    Tellus
-    Check Keyword Data    ${tc.kws[3]}    MOD1.Failing
+    Check Keyword Data    ${tc.kws[3]}    MOD1.Failing    status=FAIL
     Check Syslog Contains    Imported library 'module_library' with name 'MOD1'
     Check Syslog Contains    Imported library 'pythonmodule.library' with name 'mod 2'
 
@@ -126,18 +129,12 @@ Test Case Scope
 With Name When Library Arguments Are Not Strings
     Check Syslog Contains    Imported library 'ParameterLibrary' with arguments [ 1 | 2 ]
 
-Case-insensitive 'with name' works but is deprecated
-    Check Test Case    ${TEST NAME}
+'WITH NAME' is case-sensitive
     ${path} =    Normalize Path    ${DATADIR}/test_libraries/with_name_3.robot
     ${message} =    Catenate
     ...    Error in file '${path}':
-    ...    Using 'WITH NAME' syntax when importing libraries case insensitively like 'with name' is deprecated.
-    ...    Use all upper case format 'WITH NAME' instead.
-    Check Log Message    @{ERRORS}[0]    ${message}    WARN
-    ${message} =    Catenate
-    ...    Using 'WITH NAME' syntax when importing libraries case insensitively like 'With Name' is deprecated.
-    ...    Use all upper case format 'WITH NAME' instead.
-    Check Log Message    @{ERRORS}[-1]    ${message}    WARN
+    ...    Test Library 'ParameterLibrary' expected 0 to 2 arguments, got 4.
+    Check Log Message    ${ERRORS[-1]}    ${message}    ERROR
 
 'WITH NAME' cannot come from variable
     Check Test Case    ${TEST NAME}

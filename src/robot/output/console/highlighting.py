@@ -18,6 +18,7 @@
 # http://www.burgaud.com/bring-colors-to-the-windows-console-with-python/
 
 from contextlib import contextmanager
+import errno
 import os
 import sys
 try:
@@ -48,12 +49,27 @@ class HighlightingStream(object):
         return highlighter(stream)
 
     def write(self, text, flush=True):
-        self.stream.write(console_encode(text, stream=self.stream))
+        self._write(console_encode(text, stream=self.stream))
         if flush:
             self.flush()
 
+    def _write(self, text, retry=5):
+        # Workaround for Windows 10 console bug:
+        # https://github.com/robotframework/robotframework/issues/2709
+        try:
+            self.stream.write(text)
+        except IOError as err:
+            if not (WINDOWS and err.errno == 0 and retry > 0):
+                raise
+            self._write(text, retry-1)
+
     def flush(self):
-        self.stream.flush()
+        try:
+            self.stream.flush()
+        except IOError as err:
+            # Continue even if pipe is broken. EINVAL can occur on Windows.
+            if err.errno not in (errno.EPIPE, errno.EINVAL):
+                raise
 
     def highlight(self, text, status=None, flush=True):
         if self._must_flush_before_and_after_highlighting():

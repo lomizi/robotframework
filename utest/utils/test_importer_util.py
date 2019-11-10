@@ -8,7 +8,7 @@ import re
 from os.path import basename, dirname, exists, join, normpath
 
 from robot.errors import DataError
-from robot.utils import abspath, JYTHON, WINDOWS, PY3
+from robot.utils import abspath, JYTHON, WINDOWS, PY3, unicode
 from robot.utils.importer import Importer, ByPathImporter
 from robot.utils.asserts import (assert_equal, assert_true, assert_raises,
                                  assert_raises_with_msg)
@@ -19,14 +19,14 @@ LIBDIR = normpath(join(CURDIR, '..', '..', 'atest', 'testresources', 'testlibs')
 TEMPDIR = tempfile.gettempdir()
 TESTDIR = join(TEMPDIR, 'robot-importer-testing')
 WINDOWS_PATH_IN_ERROR = re.compile(r"'\w:\\")
-if PY3:
-    unicode = str
 
 
 def assert_prefix(error, expected):
     message = unicode(error)
     count = 3 if WINDOWS_PATH_IN_ERROR.search(message) else 2
     prefix = ':'.join(message.split(':')[:count]) + ':'
+    if 'ImportError:' in expected and sys.version_info >= (3, 6):
+        expected = expected.replace('ImportError:', 'ModuleNotFoundError:')
     assert_equal(prefix, expected)
 
 
@@ -392,8 +392,10 @@ class TestErrorDetails(unittest.TestCase):
 
     def test_structure(self):
         error = self._failing_import('NoneExisting')
-        message = ("Importing 'NoneExisting' failed: ImportError: No module "
-                   "named {q}NoneExisting{q}".format(q="'" if PY3 else ""))
+        quote = "'" if PY3 else ''
+        type = 'Import' if sys.version_info < (3, 6) else 'ModuleNotFound'
+        message = ("Importing 'NoneExisting' failed: {type}Error: No module "
+                   "named {q}NoneExisting{q}".format(q=quote, type=type))
         expected = (message, self._get_traceback(error),
                     self._get_pythonpath(error), self._get_classpath(error))
         assert_equal(unicode(error), '\n'.join(expected).strip())

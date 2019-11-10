@@ -8,7 +8,6 @@ Library           String
 Library           TestCheckerLibrary
 Library           TestHelper           # Combine with TestCheckerLibrary?
 Library           XML
-Library           read_interpreter.py
 Variables         atest_variables.py
 
 *** Variables ***
@@ -114,12 +113,16 @@ Check Test Tags
     [Return]    ${tc}
 
 Check Keyword Data
-    [Arguments]    ${kw}    ${name}    ${assign}=    ${args}=
+    [Arguments]    ${kw}    ${name}    ${assign}=    ${args}=    ${status}=PASS    ${tags}=    ${type}=kw
     Should be equal    ${kw.name}    ${name}
+    Should be equal    ${kw.status}    ${status}
+    Should be equal    ${kw.type}    ${type}
     ${kwassign}=    Catenate    SEPARATOR=,${SPACE}    @{kw.assign}
     Should be equal    ${kwassign}    ${assign}
     ${kwargs}=    Catenate    SEPARATOR=,${SPACE}    @{kw.args}
     Should match    ${kwargs}    ${args}
+    ${kwtags}=    Catenate    SEPARATOR=,${SPACE}    @{kw.tags}
+    Should be equal    ${kwtags}    ${tags}
 
 Get Output File
     [Arguments]    ${path}
@@ -153,6 +156,12 @@ File Should Contain Regexp
     ${file} =    Get Output File    ${path}
     Should Match Regexp    ${file.strip()}    ${exp}
 
+File Should Not Contain Regexp
+    [Arguments]    ${path}    @{expected}
+    ${exp} =    Catenate    @{expected}
+    ${file} =    Get Output File    ${path}
+    Should Not Match Regexp    ${file.strip()}    ${exp}
+
 File Should Be Equal To
     [Arguments]    ${path}    @{expected}
     ${content} =    Get Output File    ${path}
@@ -171,9 +180,19 @@ File Should Contain Match
     ${exp} =    Catenate    @{expected}
     Should Match    ${content}    *${exp}*
 
+File Should Start With
+    [Arguments]    ${path}    @{expected}
+    ${content} =    Get Output File    ${path}
+    ${exp} =    Catenate    @{expected}
+    Should Start With    ${content}    ${exp}
+
 Stderr Should Be Equal To
     [Arguments]    @{expected}
     File Should Be Equal To    ${STDERR FILE}    @{expected}
+
+Stderr Should Start With
+    [Arguments]    @{expected}
+    File Should Start With    ${STDERR FILE}    @{expected}
 
 Stderr Should Match
     [Arguments]    @{expected}
@@ -247,6 +266,10 @@ Syslog Should Contain Regexp
     [Arguments]    @{expected}
     File Should Contain Regexp    ${SYSLOG_FILE}    @{expected}
 
+Syslog Should Not Contain Regexp
+    [Arguments]    @{expected}
+    File Should Not Contain Regexp    ${SYSLOG FILE}    @{expected}
+
 Check Names
     [Arguments]    ${item}    ${name}    ${longprefix}=
     Should Be Equal    ${item.name}    ${name}
@@ -302,9 +325,10 @@ Test And All Keywords Should Have Passed
 
 All Keywords Should Have Passed
     [Arguments]    ${tc or kw}
-    : FOR    ${kw}    IN    @{tc or kw.kws}
-    \    Should Be Equal    ${kw.status}    PASS
-    \    All Keywords Should Have Passed    ${kw}
+    FOR    ${kw}    IN    @{tc or kw.kws}
+        Should Be Equal    ${kw.status}    PASS
+        All Keywords Should Have Passed    ${kw}
+    END
 
 Set PYTHONPATH
     [Arguments]    @{values}
@@ -317,3 +341,16 @@ Reset PYTHONPATH
     Remove Environment Variable    PYTHONPATH
     Remove Environment Variable    JYTHONPATH
     Remove Environment Variable    IRONPYTHONPATH
+
+Import should have failed
+    [Arguments]    ${index}    ${path}    ${message}    ${traceback}=*
+    ...    ${stacktrace}=
+    ${path} =    Normalize Path    ${DATADIR}/${path}
+    ${error} =    Set Variable    Error in file '${path}': ${message}
+    ${error} =    Set Variable If    $traceback and not $stacktrace
+    ...    ${error}\nTraceback (most recent call last):\n*${traceback}*
+    ...    ${error}
+    ${error} =    Set Variable If    $stacktrace
+    ...    ${error}\n*${stacktrace}*
+    ...    ${error}
+    Check Log Message    ${ERRORS}[${index}]    ${error}    level=ERROR    pattern=yes

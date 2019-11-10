@@ -33,6 +33,66 @@ Set Variable With More Or Less Than One Value
     ${emp} =    Set Variable
     Should Be Equal    ${emp}    ${EMPTY}
 
+Set Local Variable - Scalars
+    [Documentation]    FAIL Variable '\${non_existing}' not found.
+    Should Be Equal    ${scalar}    Hi tellus
+    Set Local Variable    ${scalar}    Hello world
+    Should Be Equal    ${scalar}    Hello world
+    ${scalar} =    Set Variable    Moi maailma
+    Set Local Variable    \${scalar}
+    Should Be Equal    ${scalar}    Moi maailma
+    Set Local Variable    ${new}    Previously non-existing
+    Should Be Equal    ${new}    Previously non-existing
+    Set Local Variable    $non_existing
+
+Set Local Variable - Lists
+    Should Be True    @{list} == ['Hello', 'world']
+    Set Local Variable    \@{list}    One item
+    Should Be True    @{list} == ['One item']
+    Set Local Variable    @{list}    One    Two    Three
+    Should Be True    @{list} == ['One','Two','Three']
+    @{list} =    Set Variable    1    2    3
+    Set Local Variable    @{list}
+    Should Be True    @{list} == ['1','2','3']
+    Set Local Variable    @{new}    This    is    ok
+    Should Be True    @{new} == ['This','is','ok']
+
+Set Local Variable - Dicts
+    Should Be True    &{DICT} == {'key': 'value', 'foo': 'bar'}
+    Set Local Variable    \&{DICT}    hello=world
+    Should Be True    &{DICT} == {'hello': 'world'}
+    Should Be Equal    ${DICT.hello}    world
+    Set Local Variable    &{DICT}    a=${1}    ${2}=b
+    Should Be True    &{DICT} == {'a': 1, 2: 'b'}
+    &{dict} =    Create Dictionary
+    Set Local Variable    &{DICT}
+    Should Be True    &{DICT} == {}
+    Set Local Variable    &{new}    new=dict
+    Should Be True    &{new} == {'new': 'dict'}
+    Should Be Equal    ${new.new}    dict
+
+Set Local Variables Overrides Test Variables
+    Should Be Equal    ${scalar}    Hi tellus
+    Set Test Variable    ${scalar}    Hello world
+    Should Be Equal    ${scalar}    Hello world
+    Set Local Variable    ${scalar}    Moi maailma
+    Should Be Equal    ${scalar}    Moi maailma
+
+Set Local Variable In Keyword Not Available In Test
+    Variable Should Not Exist    ${new}
+    Setting Local Variable
+    Variable Should Not Exist    ${new}
+
+Set Local Variable In Keyword Not Available In Another Keyword
+    Setting Local Variable
+    Local Variable Should Not Exist
+
+Setting Local Variable In Test Not Available In Keyword
+     Variable Should Not Exist    ${new}
+     Set Local Variable    ${new}    Moi maailma
+     Should Be Equal    ${new}    Moi maailma
+     Setting Local Variable
+
 Set Test Variable - Scalars
     [Documentation]    FAIL Variable '\${non_existing}' not found.
     Should Be Equal    ${scalar}    Hi tellus
@@ -108,6 +168,13 @@ Set Test Variable Needing Escaping
     Set Test Variable    &{var5}    this\=is\=key=value    path=c:\\temp    not var=\${nv}
     Should Be True    &{var5} == {'this=is=key': 'value', 'path': 'c:\\\\temp', 'not var': '\${nv}'}
 
+Set Test Variable Affect Subsequent Keywords
+    Set Test Variable    ${TEST VAR}    Set in test level
+    Test Variable Should Be Set To      Set in test level
+    Test Variable Should Be Set To      Set in test level
+    Set Test Variable    ${TEST VAR}    Set again in test level
+    Test Variable Should Be Set To      Set again in test level
+
 Set Test Variable In User Keyword
     ${local} =    Set Variable    Does no leak to keywords
     Variable Should Not Exist    $uk_var_1
@@ -130,6 +197,13 @@ Set Test Variable Not Affecting Other Tests
     Variable Should Not Exist    @uk_var_3
     Variable Should Not Exist    $uk_var_4
     Check Test Variables Not Available In UK
+
+Set Task Variable as alias for Set Test Variable
+    Set Task Variable    ${TEST VAR}    Set in test level
+    Test Variable Should Be Set To      Set in test level
+    Test Variable Should Be Set To      Set in test level
+    Set Task Variable    ${TEST VAR}    Set again in test level
+    Test Variable Should Be Set To      Set again in test level
 
 Set Suite Variable 1
     [Documentation]    FAIL Variable '\${non_existing}' not found.
@@ -198,6 +272,7 @@ Set Global Variable 1
     Should Be Equal    ${sub_uk_level_global_var}    Global var set in sub user keyword
     Should Be True    @{sub_uk_level_global_var_list} == [ 'Global var set in', 'sub user keyword' ]
     Check Global Variables Available In UK
+    Set Global Variable    ${VARIABLE TABLE IN VARIABLES 2 (3)}    Set by test in "variables.robot"
     Set Global Variable    @non_existing
 
 Set Global Variable 2
@@ -281,9 +356,10 @@ Overiding Variable When It Has Non-string Value
     Should Be Equal    ${v1} - ${v2}    a string - 42
 
 Set Test/Suite/Global Variable In User Keyword When Variable Name Is Used As Argument
-    : FOR    ${type}    IN    Test    Suite    Global
-    \    Test Setting Variable In User Keyword    \${variable}    ${type}
-    \    Test Setting Variable In User Keyword    $variable    ${type}
+    FOR    ${type}    IN    Test    Suite    Global
+        Test Setting Variable In User Keyword    \${variable}    ${type}
+        Test Setting Variable In User Keyword    $variable    ${type}
+    END
 
 Setting Test/Suite/Global Variable Which Value Is In Variable Like Syntax
     Set Test Variable    ${variable}    \\\${foo}
@@ -478,6 +554,7 @@ My Suite Setup
     Should Be True    ${PARENT SUITE SETUP CHILD SUITE VAR 2} == ['Set in', '__init__']
     Should Be True    ${PARENT SUITE SETUP CHILD SUITE VAR 3} == {'Set': 'in __init__'}
     Set Suite Variable    ${PARENT SUITE SETUP CHILD SUITE VAR 3}    Only seen in this suite    children=true
+    Set Global Variable    ${VARIABLE TABLE IN VARIABLES 2 (2)}    Set by suite setup in "variables.robot"
 
 My Suite Teardown
     Set Suite Variable    $suite_teardown_suite_var    Suite var set in suite teardown
@@ -497,6 +574,15 @@ My Suite Teardown
     Should Be Equal    ${PARENT SUITE SETUP CHILD SUITE VAR 1}    Set in __init__
     Should Be Equal    ${PARENT SUITE SETUP CHILD SUITE VAR 2}    Overridden by global
     Should Be Equal    ${PARENT SUITE SETUP CHILD SUITE VAR 3}    Only seen, and overridden, in this suite
+
+Test Variable Should Be Set To
+    [Arguments]    ${expected}
+    Should Be Equal    ${TEST VAR}    ${expected}
+    Test Variable Should Be Set To 2    ${expected}
+
+Test Variable Should Be Set To 2
+    [Arguments]    ${expected}
+    Should Be Equal    ${TEST VAR}    ${expected}
 
 Set Test Variables In UK
     Variable Should Not Exist    ${local}
@@ -609,3 +695,12 @@ Dict mutating user keyword 2
 
 Verify @{EMPTY} is still empty
     No Operation    @{EMPTY}
+
+
+Setting Local Variable
+    Variable Should Not Exist    ${new}
+    Set Local Variable    ${new}    Previously non-existing
+    Should Be Equal    ${new}    Previously non-existing
+
+Local Variable Should Not Exist
+    Variable Should Not Exist    ${new}

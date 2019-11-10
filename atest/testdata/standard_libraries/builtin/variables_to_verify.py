@@ -1,4 +1,11 @@
+from collections import OrderedDict
 import os
+import sys
+
+try:
+    ascii
+except NameError:
+    ascii = repr
 
 if os.name == 'java':
     from java.lang import String
@@ -6,70 +13,60 @@ if os.name == 'java':
     import jarray
 
 
-class _Custom:
-    def __init__(self, length):
-        self._length = length
-    def __len__(self):
-        return self._length
+PY3_OR_IPY = sys.version_info[0] > 2 or sys.platform == 'cli'
 
-class _LengthMethod:
-    def length(self):
-        return 40
-    def __str__(self):
-        return 'length()'
-    
-class _SizeMethod:
-    def size(self):
-        return 41
-    def __str__(self):
-        return 'size()'
-    
-class _LengthAttribute:
-    length = 42
-    def __str__(self):
-        return 'length'
 
-def _create_hashtable(dictionary):
-    ht = Hashtable()
+def get_variables():
+    variables = dict(
+        BYTES_WITHOUT_NON_ASCII=b'hyva',
+        BYTES_WITH_NON_ASCII=b'\xe4',
+        TUPLE_0=(),
+        TUPLE_1=(u'a',),
+        TUPLE_2=(u'a', 2),
+        TUPLE_3=('a', 'b', 'c'),
+        LIST=['a', 'b', 'cee', 'b', 42],
+        LIST_0=[],
+        LIST_1=['a'],
+        LIST_2=['a', 2],
+        LIST_3=['a', 'b', 'c'],
+        DICT={u'a': 1, u'A': 2, u'\xe4': 3, u'\xc4': 4},
+        ORDERED_DICT=OrderedDict([('a', 1), ('A', 2), (u'\xe4', 3), (u'\xc4', 4)]),
+        DICT_0={},
+        DICT_1={'a': 1},
+        DICT_2={'a': 1, 2: 'b'},
+        DICT_3={'a': 1, 'b': 2, 'c': 3},
+    )
+    variables['ASCII_DICT'] = ascii(variables['DICT'])
+    variables['PREPR_DICT1'] = "{'a': 1}" if PY3_OR_IPY else "{b'a': 1}"
+    variables['U'] = '' if PY3_OR_IPY else 'u'
+    if os.name == 'java':
+        variables.update(get_java_variables(**variables))
+    return variables
+
+
+def get_java_variables(DICT_1, DICT_2, DICT_3, LIST_1, LIST_2, LIST_3, **extra):
+    return dict(
+        STRING_0=String(),
+        STRING_1=String('a'),
+        STRING_2=String('ab'),
+        STRING_3=String('abc'),
+        HASHTABLE_0=Hashtable(),
+        HASHTABLE_1=create_hashtable(DICT_1),
+        HASHTABLE_2=create_hashtable(DICT_2),
+        HASHTABLE_3=create_hashtable(DICT_3),
+        VECTOR_0=Vector(),
+        VECTOR_1=Vector(LIST_1),
+        VECTOR_2=Vector(LIST_2),
+        VECTOR_3=Vector(LIST_3),
+        ARRAY_0=jarray.array([], String),
+        ARRAY_1=jarray.array([str(i) for i in LIST_1], String),
+        ARRAY_2=jarray.array([str(i) for i in LIST_2], String),
+        ARRAY_3=jarray.array([str(i) for i in LIST_3], String)
+    )
+
+
+def create_hashtable(dictionary):
+    ht=Hashtable()
     for key, value in dictionary.items():
         ht.put(key, value)
     return ht
-
-bytes_without_non_ascii = 'hyva'
-bytes_with_non_ascii = '\xe4'
-tuple0 = ()
-tuple1 = ('a',)
-tuple2 = ('a', 'b')
-tuple3 = ('a', 'b', 'c')
-list0 = []
-list1 = ['a']
-list2 = ['a', 'b']
-list3 = ['a', 'b', 'c']
-dict0 = {}
-dict1 = {'a':1}
-dict2 = {'a':1, 'b':2}
-dict3 = {'a':1, 'b':2, 'c':3}
-custom0 = _Custom(0)
-custom1 = _Custom(1)
-custom2 = _Custom(2)
-custom3 = _Custom(3)
-length_method = _LengthMethod()
-size_method = _SizeMethod()
-length_attribute = _LengthAttribute()
-if os.name == 'java':
-    string0 = String()
-    string1 = String('a')
-    string2 = String('ab')
-    string3 = String('abc')
-    hashtable0 = Hashtable()
-    hashtable1 = _create_hashtable(dict1)
-    hashtable2 = _create_hashtable(dict2)
-    hashtable3 = _create_hashtable(dict3)
-    vector0 = Vector()
-    vector1 = Vector(list1)
-    vector2 = Vector(list2)
-    vector3 = Vector(list3)
-    array0 = jarray.array(list0, String)
-    array1 = jarray.array(list1, String)
-    array2 = jarray.array(list2, String)
-    array3 = jarray.array(list3, String)

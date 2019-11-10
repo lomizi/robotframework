@@ -1,66 +1,43 @@
 *** Settings ***
-Resource      atest_resource.robot
-
-*** Variables ***
-${INPUT 1}    ${CURDIR}${/}..${/}..${/}testdata${/}misc${/}pass_and_fail.robot
-${INPUT 2}    ${CURDIR}${/}..${/}..${/}testdata${/}misc${/}suites
-${INPUT 3}    ${CURDIR}${/}..${/}..${/}testdata${/}testdoc
-${OUTFILE}    %{TEMPDIR}${/}testdoc-output.html
-
+Resource        testdoc_resource.robot
 
 *** Test Cases ***
 One input
-    ${output}=    Run TestDoc    ${INPUT 1}
-    Testdoc Should Contain    "name":"Pass And Fail"    "title":"Pass And Fail"    "numberOfTests":2
+    Run TestDoc    ${INPUT 1}
+    Testdoc Should Contain    "name":"First One"    "title":"Normal"    "numberOfTests":2
     Outfile Should Have Correct Line Separators
-    Output Should Contain Outfile    ${output}
+    Output Should Contain Outfile
 
 Variables and imports are not processes
-    ${output}=    Run TestDoc    ${INPUT 3}
+    Run TestDoc    ${INPUT 3}
     Testdoc Should Contain    "name":"Testdoc"    "title":"Testdoc"    "numberOfTests":1
     Outfile Should Have Correct Line Separators
-    Output Should Contain Outfile    ${output}
+    Output Should Contain Outfile
 
 Many inputs
-    ${output}=    Run TestDoc    --exclude t1 --title Nön-ÄSCII ${INPUT 1} ${INPUT2} ${INPUT 3}
-    Testdoc Should Contain    "name":"Pass And Fail &amp; Suites &amp; Testdoc"    "title":"Nön-ÄSCII"    "numberOfTests":8
+    Run TestDoc    --exclude    t1    --title    Nön-ÄSCII
+    ...    ${INPUT 1}    ${INPUT2}    ${INPUT 3}
+    Testdoc Should Contain    "name":"Normal &amp; Suites &amp; Testdoc"    "title":"Nön-ÄSCII"    "numberOfTests":7
     Testdoc Should Not Contain    "name":"Suite4 First"
     Outfile Should Have Correct Line Separators
-    Output Should Contain Outfile    ${output}
+    Output Should Contain Outfile
 
-Invalid usage
-    ${output}=    Run TestDoc    ${EMPTY}    252
-    Should Be Equal    ${output}    Expected at least 2 arguments, got 1.${USAGE TIP}
-
-
-*** Keyword ***
-Run TestDoc
-    [Arguments]    ${args}    ${expected rc}=0
-    @{args} =    Split Command line    ${args}
-    ${result}=   Run Process  @{INTERPRETER.testdoc}  @{args}  ${OUTFILE}
-    Should Be Equal As Numbers   ${result.rc}    ${expected rc}
-    [Return]    ${result.stdout}
-
-Testdoc Should Contain
-    [Arguments]    @{expected}
-    ${testdoc}=    Get File    ${OUTFILE}
-    : FOR     ${exp}    IN   @{expected}
-    \    Should Contain    ${testdoc}   ${exp}
-
-Testdoc Should Not Contain
-    [Arguments]    @{expected}
-    ${testdoc}=    Get File    ${OUTFILE}
-    : FOR     ${exp}    IN   @{expected}
-    \    Should Not Contain    ${testdoc}   ${exp}
-
-Outfile Should Have Correct Line Separators
-    File should have correct line separators    ${OUTFILE}
-
-Output Should Contain Outfile
-    [Arguments]    ${output}
-    [Documentation]    Printed outfile may be in different formats.
-    ...                IronPython seems to like c:\olddos~1\format~2.ext
-    Should Not Contain    ${output}    ERROR
-    File Should Exist    ${output}
-    Remove File    ${OUTFILE}
-    File Should Not Exist    ${output}
+Argument file
+    Create Argument File    ${ARGFILE 1}
+    ...    --name Testing argument file
+    ...    --doc Overridden from cli
+    ...    ${EMPTY}
+    ...    \# I'm a comment and I'm OK! And so are empty rows around me too.
+    ...    ${EMPTY}
+    ...    --exclude t2
+    Create Argument File    ${ARGFILE 2}
+    ...    --title My title!
+    ...    ${INPUT 1}
+    Run TestDoc
+    ...    --name    Overridden by argument file
+    ...    --argumentfile    ${ARGFILE 1}
+    ...    --doc    The doc
+    ...    -A    ${ARGFILE 2}
+    Testdoc Should Contain    "name":"Testing argument file"    "title":"My title!"    "numberOfTests":1
+    Outfile Should Have Correct Line Separators
+    Output Should Contain Outfile

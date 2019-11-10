@@ -70,7 +70,8 @@ class Importer(object):
             imported = self._instantiate_if_needed(imported, instantiate_with_args)
         except DataError as err:
             self._raise_import_failed(name, err)
-        return (imported, source) if return_source else imported
+        else:
+            return (imported, source) if return_source else imported
 
     def _import_class_or_module(self, name):
         for importer in self._importers:
@@ -143,6 +144,9 @@ class _Importer(object):
         self._logger = logger
 
     def _import(self, name, fromlist=None, retry=True):
+        if name in sys.builtin_module_names:
+            raise DataError('Cannot import custom module with same name as '
+                            'Python built-in module.')
         invalidate_import_caches()
         try:
             try:
@@ -174,9 +178,10 @@ class _Importer(object):
 
     def _get_source(self, imported):
         try:
-            return abspath(inspect.getfile(imported))
+            source = inspect.getfile(imported)
         except TypeError:
             return None
+        return abspath(source) if source else None
 
 
 class ByPathImporter(_Importer):
@@ -239,7 +244,7 @@ class ByPathImporter(_Importer):
         try:
             return self._import(module_name)
         finally:
-            sys.path.pop(0)
+            sys.path.remove(module_dir)
 
 
 class NonDottedImporter(_Importer):

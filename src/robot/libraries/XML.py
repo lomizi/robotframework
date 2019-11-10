@@ -24,8 +24,8 @@ except ImportError:
 
 from robot.api import logger
 from robot.libraries.BuiltIn import BuiltIn
-from robot.utils import (asserts, ET, ETSource, is_string, is_truthy,
-                         plural_or_not as s)
+from robot.utils import (asserts, ET, ETSource, is_bytes, is_falsy, is_string,
+                         is_truthy, plural_or_not as s)
 from robot.version import get_version
 
 
@@ -38,7 +38,7 @@ class XML(object):
 
     As the name implies, _XML_ is a test library for verifying contents of XML
     files. In practice it is a pretty thin wrapper on top of Python's
-    [https://docs.python.org/2/library/xml.etree.elementtree.html|ElementTree XML API].
+    [http://docs.python.org/library/xml.etree.elementtree.html|ElementTree XML API].
 
     The library has the following main usages:
 
@@ -61,22 +61,23 @@ class XML(object):
     - `Element attributes`
     - `Handling XML namespaces`
     - `Boolean arguments`
+    - `Pattern matching`
     - `Shortcuts`
     - `Keywords`
 
     = Parsing XML =
 
     XML can be parsed into an element structure using `Parse XML` keyword.
-    It accepts both paths to XML files and strings that contain XML. The
-    keyword returns the root element of the structure, which then contains
-    other elements as its children and their children. Possible comments and
-    processing instructions in the source XML are removed.
+    The XML to be parsed can be specified using a path to an XML file or as
+    a string or bytes that contain XML directly. The keyword returns the root
+    element of the structure, which then contains other elements as its
+    children and their children. Possible comments and processing instructions
+    in the source XML are removed.
 
     XML is not validated during parsing even if has a schema defined. How
     possible doctype elements are handled otherwise depends on the used XML
     module and on the platform. The standard ElementTree strips doctypes
     altogether but when `using lxml` they are preserved when XML is saved.
-    With IronPython parsing XML with a doctype is not supported at all.
 
     The element structure returned by `Parse XML`, as well as elements
     returned by keywords such as `Get Element`, can be used as the ``source``
@@ -93,10 +94,12 @@ class XML(object):
     escaped by doubling it (``\\\\``). Using the built-in variable ``${/}``
     naturally works too.
 
+    Note: Support for XML as bytes is new in Robot Framework 3.2.
+
     = Using lxml =
 
     By default this library uses Python's standard
-    [https://docs.python.org/2/library/xml.etree.elementtree.html|ElementTree]
+    [http://docs.python.org/library/xml.etree.elementtree.html|ElementTree]
     module for parsing XML, but it can be configured to use
     [http://lxml.de|lxml] module instead when `importing` the library.
     The resulting element structure has same API regardless which module
@@ -105,8 +108,6 @@ class XML(object):
     The main benefits of using lxml is that it supports richer xpath syntax
     than the standard ElementTree and enables using `Evaluate Xpath` keyword.
     It also preserves the doctype and possible namespace prefixes saving XML.
-
-    The lxml support is new in Robot Framework 2.8.5.
 
     = Example =
 
@@ -159,13 +160,10 @@ class XML(object):
 
     ElementTree, and thus also this library, supports finding elements using
     xpath expressions. ElementTree does not, however, support the full xpath
-    syntax, and what is supported depends on its version. ElementTree 1.3 that
-    is distributed with Python 2.7 supports richer syntax than earlier versions.
-
-    The supported xpath syntax is explained below and
-    [http://effbot.org/zone/element-xpath.htm|ElementTree documentation]
-    provides more details. In the examples ``${XML}`` refers to the same XML
-    structure as in the earlier example.
+    standard. The supported xpath syntax is explained below and
+    [https://docs.python.org/library/xml.etree.elementtree.html#xpath-support|
+    ElementTree documentation] provides more details. In the examples
+    ``${XML}`` refers to the same XML structure as in the earlier example.
 
     If lxml support is enabled when `importing` the library, the whole
     [http://www.w3.org/TR/xpath/|xpath 1.0 standard] is supported.
@@ -212,8 +210,7 @@ class XML(object):
 
     The parent element of another element is denoted with two dots (``..``).
     Notice that it is not possible to refer to the parent of the current
-    element. This syntax is supported only in ElementTree 1.3 (i.e.
-    Python/Jython 2.7 and newer).
+    element.
 
     | ${elem} =         | `Get Element` | ${XML} | */second/.. |
     | `Should Be Equal` | ${elem.tag}   | third  |             |
@@ -234,11 +231,8 @@ class XML(object):
     Predicates allow selecting elements using also other criteria than tag
     names, for example, attributes or position. They are specified after the
     normal tag name or path using syntax ``path[predicate]``. The path can have
-    wildcards and other special syntax explained above.
-
-    What predicates ElementTree supports is explained in the table below.
-    Notice that predicates in general are supported only in ElementTree 1.3
-    (i.e. Python/Jython 2.7 and newer).
+    wildcards and other special syntax explained earlier. What predicates
+    the standard ElementTree supports is explained in the table below.
 
     |  = Predicate =  |             = Matches =           |    = Example =     |
     | @attrib         | Elements with attribute ``attrib``. | second[@id]        |
@@ -253,7 +247,7 @@ class XML(object):
 
     All keywords returning elements, such as `Parse XML`, and `Get Element`,
     return ElementTree's
-    [http://docs.python.org/library/xml.etree.elementtree.html#xml.etree.ElementTree.Element|Element objects].
+    [http://docs.python.org/library/xml.etree.elementtree.html#element-objects|Element objects].
     These elements can be used as inputs for other keywords, but they also
     contain several useful attributes that can be accessed directly using
     the extended variable syntax.
@@ -313,8 +307,9 @@ class XML(object):
     inconvenient especially with xpaths, and by default this library strips
     those namespaces away and moves them to ``xmlns`` attribute instead. That
     can be avoided by passing ``keep_clark_notation`` argument to `Parse XML`
-    keyword. The pros and cons of both approaches are discussed in more detail
-    below.
+    keyword. Alternatively `Parse XML` supports stripping namespace information
+    altogether by using ``strip_namespaces`` argument. The pros and cons of
+    different approaches are discussed in more detail below.
 
     == How ElementTree handles namespaces ==
 
@@ -385,9 +380,20 @@ class XML(object):
 
     == Namespaces when using lxml ==
 
-    Namespaces are handled the same way also when `using lxml`. The only
-    difference is that lxml stores information about namespace prefixes and
-    thus they are preserved if XML is saved.
+    This library handles namespaces same way both when `using lxml` and when
+    not using it. There are, however, differences how lxml internally handles
+    namespaces compared to the standard ElementTree. The main difference is
+    that lxml stores information about namespace prefixes and they are thus
+    preserved if XML is saved. Another visible difference is that lxml includes
+    namespace information in child elements got with `Get Element` if the
+    parent element has namespaces.
+
+    == Stripping namespaces altogether ==
+
+    Because namespaces often add unnecessary complexity, `Parse XML` supports
+    stripping them altogether by using ``strip_namespaces=True``. When this
+    option is enabled, namespaces are not shown anywhere nor are they included
+    if XML is saved.
 
     == Attribute namespaces ==
 
@@ -409,11 +415,10 @@ class XML(object):
 
     Some keywords accept arguments that are handled as Boolean values true or
     false. If such an argument is given as a string, it is considered false if
-    it is either empty or case-insensitively equal to ``false`` or ``no``.
-    Other strings are considered true regardless their value, and other
-    argument types are tested using same
-    [http://docs.python.org/2/library/stdtypes.html#truth-value-testing|rules
-    as in Python].
+    it is an empty string or equal to ``FALSE``, ``NONE``, ``NO``, ``OFF`` or
+    ``0``, case-insensitively. Other strings are considered true regardless
+    their value, and other argument types are tested using the same
+    [http://docs.python.org/library/stdtypes.html#truth|rules as in Python].
 
     True examples:
     | `Parse XML` | ${XML} | keep_clark_notation=True    | # Strings are generally true.    |
@@ -427,10 +432,28 @@ class XML(object):
     | `Parse XML` | ${XML} | keep_clark_notation=${EMPTY} | # Empty string is false.       |
     | `Parse XML` | ${XML} | keep_clark_notation=${FALSE} | # Python ``False`` is false.   |
 
-    Note that prior to Robot Framework 2.9, all non-empty strings, including
-    ``false`` and ``no``, were considered true.
-    """
+    Considering string ``NONE`` false is new in Robot Framework 3.0.3 and
+    considering also ``OFF`` and ``0`` false is new in Robot Framework 3.1.
 
+    == Pattern matching ==
+
+    Some keywords, for example `Elements Should Match`, support so called
+    [http://en.wikipedia.org/wiki/Glob_(programming)|glob patterns] where:
+
+    | ``*``        | matches any string, even an empty string                |
+    | ``?``        | matches any single character                            |
+    | ``[chars]``  | matches one character in the bracket                    |
+    | ``[!chars]`` | matches one character not in the bracket                |
+    | ``[a-z]``    | matches one character from the range in the bracket     |
+    | ``[!a-z]``   | matches one character not from the range in the bracket |
+
+    Unlike with glob patterns normally, path separator characters ``/`` and
+    ``\\`` and the newline character ``\\n`` are matches by the above
+    wildcards.
+
+    Support for brackets like ``[abc]`` and ``[!a-z]`` is new in
+    Robot Framework 3.1
+    """
     ROBOT_LIBRARY_SCOPE = 'GLOBAL'
     ROBOT_LIBRARY_VERSION = get_version()
     _xml_declaration = re.compile('^<\?xml .*\?>')
@@ -439,7 +462,7 @@ class XML(object):
         """Import library with optionally lxml mode enabled.
 
         By default this library uses Python's standard
-        [https://docs.python.org/2/library/xml.etree.elementtree.html|ElementTree]
+        [http://docs.python.org/library/xml.etree.elementtree.html|ElementTree]
         module for parsing XML. If ``use_lxml`` argument is given a true value
         (see `Boolean arguments`), the library will use [http://lxml.de|lxml]
         module instead. See `Using lxml` section for benefits provided by lxml.
@@ -447,8 +470,6 @@ class XML(object):
         Using lxml requires that the lxml module is installed on the system.
         If lxml mode is enabled but the module is not installed, this library
         will emit a warning and revert back to using the standard ElementTree.
-
-        The support for lxml is new in Robot Framework 2.8.5.
         """
         use_lxml = is_truthy(use_lxml)
         if use_lxml and lxml_etree:
@@ -462,33 +483,39 @@ class XML(object):
         if use_lxml and not lxml_etree:
             logger.warn('XML library reverted to use standard ElementTree '
                         'because lxml module is not installed.')
+        self._ns_stripper = NameSpaceStripper(self.etree, self.lxml_etree)
 
-    def parse_xml(self, source, keep_clark_notation=False):
+    def parse_xml(self, source, keep_clark_notation=False, strip_namespaces=False):
         """Parses the given XML file or string into an element structure.
 
         The ``source`` can either be a path to an XML file or a string
         containing XML. In both cases the XML is parsed into ElementTree
-        [http://docs.python.org/library/xml.etree.elementtree.html#xml.etree.ElementTree.Element|element structure]
+        [http://docs.python.org/library/xml.etree.elementtree.html#element-objects|element structure]
         and the root element is returned. Possible comments and processing
         instructions in the source XML are removed.
 
         As discussed in `Handling XML namespaces` section, this keyword, by
-        default, strips possible namespaces added by ElementTree into tag names.
-        This typically eases handling XML documents with namespaces
-        considerably. If you do not want that to happen, or want to avoid
-        the small overhead of going through the element structure when your
-        XML does not have namespaces, you can disable this feature by giving
-        ``keep_clark_notation`` argument a true value (see `Boolean arguments`).
+        default, removes namespace information ElementTree has added to tag
+        names and moves it into ``xmlns`` attributes. This typically eases
+        handling XML documents with namespaces considerably. If you do not
+        want that to happen, or want to avoid the small overhead of going
+        through the element structure when your XML does not have namespaces,
+        you can disable this feature by giving ``keep_clark_notation`` argument
+        a true value (see `Boolean arguments`).
+
+        If you want to strip namespace information altogether so that it is
+        not included even if XML is saved, you can give a true value to
+        ``strip_namespaces`` argument. This functionality is new in Robot
+        Framework 3.0.2.
 
         Examples:
         | ${root} = | Parse XML | <root><child/></root> |
-        | ${xml} =  | Parse XML | ${CURDIR}/test.xml    | no namespace cleanup |
+        | ${xml} = | Parse XML | ${CURDIR}/test.xml | keep_clark_notation=True |
+        | ${xml} = | Parse XML | ${CURDIR}/test.xml | strip_namespaces=True |
 
         Use `Get Element` keyword if you want to get a certain element and not
         the whole structure. See `Parsing XML` section for more details and
         examples.
-
-        Stripping namespaces is a new feature in Robot Framework 2.7.5.
         """
         with ETSource(source) as source:
             tree = self.etree.parse(source)
@@ -497,7 +524,7 @@ class XML(object):
             lxml_etree.strip_elements(tree, *strip, **dict(with_tail=False))
         root = tree.getroot()
         if not is_truthy(keep_clark_notation):
-            NameSpaceStripper().strip(root)
+            self._ns_stripper.strip(root, preserve=is_falsy(strip_namespaces))
         return root
 
     def get_element(self, source, xpath='.'):
@@ -560,7 +587,7 @@ class XML(object):
         | ${children} =    | Get Elements | ${XML} | first/child |
         | Should Be Empty  |  ${children} |        |             |
         """
-        if is_string(source):
+        if is_string(source) or is_bytes(source):
             source = self.parse_xml(source)
         finder = ElementFinder(self.etree, self.modern_etree, self.lxml_etree)
         return finder.find_all(source, xpath)
@@ -590,8 +617,6 @@ class XML(object):
         with `Get Elements` keyword that this keyword uses internally.
 
         See also `Element Should Exist` and `Element Should Not Exist`.
-
-        New in Robot Framework 2.7.5.
         """
         count = len(self.get_elements(source, xpath))
         logger.info("%d element%s matched '%s'." % (count, s(count), xpath))
@@ -607,8 +632,6 @@ class XML(object):
 
         See also `Element Should Not Exist` as well as `Get Element Count`
         that this keyword uses internally.
-
-        New in Robot Framework 2.7.5.
         """
         count = self.get_element_count(source, xpath)
         if not count:
@@ -624,8 +647,6 @@ class XML(object):
 
         See also `Element Should Exist` as well as `Get Element Count`
         that this keyword uses internally.
-
-        New in Robot Framework 2.7.5.
         """
         count = self.get_element_count(source, xpath)
         if count:
@@ -735,9 +756,9 @@ class XML(object):
         the expected value can be given as a pattern that the text of the
         element must match.
 
-        Pattern matching is similar as matching files in a shell, and it is
-        always case-sensitive. In the pattern, '*' matches anything and '?'
-        matches any single character.
+        Pattern matching is similar as matching files in a shell with
+        ``*``, ``?`` and ``[chars]`` acting as wildcards. See the
+        `Pattern matching` section for more information.
 
         Examples using ``${XML}`` structure from `Example`:
         | Element Text Should Match | ${XML}       | t???   | xpath=first  |
@@ -822,9 +843,9 @@ class XML(object):
         that the expected value can be given as a pattern that the attribute of
         the element must match.
 
-        Pattern matching is similar as matching files in a shell, and it is
-        always case-sensitive. In the pattern, '*' matches anything and '?'
-        matches any single character.
+        Pattern matching is similar as matching files in a shell with
+        ``*``, ``?`` and ``[chars]`` acting as wildcards. See the
+        `Pattern matching` section for more information.
 
         Examples using ``${XML}`` structure from `Example`:
         | Element Attribute Should Match | ${XML} | id | ?   | xpath=first |
@@ -851,8 +872,6 @@ class XML(object):
 
         See also `Get Element Attribute`, `Get Element Attributes`,
         `Element Text Should Be` and `Element Text Should Match`.
-
-        New in Robot Framework 2.7.5.
         """
         attr = self.get_element_attribute(source, name, xpath)
         if attr is not None:
@@ -889,9 +908,10 @@ class XML(object):
         | Elements Should Be Equal | ${p} | <p>Text with <b>bold</b> and <i>italics</i>.</p> | normalize_whitespace=yes |
         | Elements Should Be Equal | ${p} | <p>Text with</p> | exclude | normalize |
 
-        The last example may look a bit strange because the ``<p>`` element only
-        has text ``Text with``. The reason is that rest of the text inside
-        ``<p>`` actually belongs to the child elements.
+        The last example may look a bit strange because the ``<p>`` element
+        only has text ``Text with``. The reason is that rest of the text
+        inside ``<p>`` actually belongs to the child elements. This includes
+        the ``.`` at the end that is the `tail` text of the ``<i>`` element.
 
         See also `Elements Should Match`.
         """
@@ -906,9 +926,9 @@ class XML(object):
         texts and attribute values in the expected value can be given as
         patterns.
 
-        Pattern matching is similar as matching files in a shell, and it is
-        always case-sensitive. In the pattern, '*' matches anything and '?'
-        matches any single character.
+        Pattern matching is similar as matching files in a shell with
+        ``*``, ``?`` and ``[chars]`` acting as wildcards. See the
+        `Pattern matching` section for more information.
 
         Examples using ``${XML}`` structure from `Example`:
         | ${first} =            | Get Element | ${XML} | first          |
@@ -943,8 +963,6 @@ class XML(object):
 
         Can only set the tag of a single element. Use `Set Elements Tag` to set
         the tag of multiple elements in one call.
-
-        New in Robot Framework 2.7.5.
         """
         source = self.get_element(source)
         self.get_element(source, xpath).tag = tag
@@ -955,8 +973,6 @@ class XML(object):
 
         Like `Set Element Tag` but sets the tag of all elements matching
         the given ``xpath``.
-
-        New in Robot Framework 2.8.6.
         """
         for elem in self.get_elements(source, xpath):
             self.set_element_tag(elem, tag)
@@ -983,8 +999,6 @@ class XML(object):
 
         Can only set the text/tail of a single element. Use `Set Elements Text`
         to set the text/tail of multiple elements in one call.
-
-        New in Robot Framework 2.7.5.
         """
         source = self.get_element(source)
         element = self.get_element(source, xpath)
@@ -999,8 +1013,6 @@ class XML(object):
 
         Like `Set Element Text` but sets the text or tail of all elements
         matching the given ``xpath``.
-
-        New in Robot Framework 2.8.6.
         """
         for elem in self.get_elements(source, xpath):
             self.set_element_text(elem, text, tail)
@@ -1025,8 +1037,6 @@ class XML(object):
 
         Can only set an attribute of a single element. Use `Set Elements
         Attribute` to set an attribute of multiple elements in one call.
-
-        New in Robot Framework 2.7.5.
         """
         if not name:
             raise RuntimeError('Attribute name can not be empty.')
@@ -1039,8 +1049,6 @@ class XML(object):
 
         Like `Set Element Attribute` but sets the attribute of all elements
         matching the given ``xpath``.
-
-        New in Robot Framework 2.8.6.
         """
         for elem in self.get_elements(source, xpath):
             self.set_element_attribute(elem, name, value)
@@ -1063,8 +1071,6 @@ class XML(object):
 
         Can only remove an attribute from a single element. Use `Remove Elements
         Attribute` to remove an attribute of multiple elements in one call.
-
-        New in Robot Framework 2.7.5.
         """
         source = self.get_element(source)
         attrib = self.get_element(source, xpath).attrib
@@ -1077,8 +1083,6 @@ class XML(object):
 
         Like `Remove Element Attribute` but removes the attribute of all
         elements matching the given ``xpath``.
-
-        New in Robot Framework 2.8.6.
         """
         for elem in self.get_elements(source, xpath):
             self.remove_element_attribute(elem, name)
@@ -1100,8 +1104,6 @@ class XML(object):
 
         Can only remove attributes from a single element. Use `Remove Elements
         Attributes` to remove all attributes of multiple elements in one call.
-
-        New in Robot Framework 2.7.5.
         """
         source = self.get_element(source)
         self.get_element(source, xpath).attrib.clear()
@@ -1112,8 +1114,6 @@ class XML(object):
 
         Like `Remove Element Attributes` but removes all attributes of all
         elements matching the given ``xpath``.
-
-        New in Robot Framework 2.8.6.
         """
         for elem in self.get_elements(source, xpath):
             self.remove_element_attributes(elem)
@@ -1144,8 +1144,6 @@ class XML(object):
         | Elements Should Be Equal | ${new} | <new id="x"><c1/><c3/><c2/></new> |
 
         Use `Remove Element` or `Remove Elements` to remove elements.
-
-        New in Robot Framework 2.7.5.
         """
         source = self.get_element(source)
         parent = self.get_element(source, xpath)
@@ -1177,8 +1175,6 @@ class XML(object):
         | Element Should Not Exist | ${XML} | xpath=second |
         | Remove Element           | ${XML} | xpath=html/p/b | remove_tail=yes |
         | Element Text Should Be   | ${XML} | Text with italics. | xpath=html/p | normalize_whitespace=yes |
-
-        New in Robot Framework 2.7.5.
         """
         source = self.get_element(source)
         self._remove_element(source, self.get_element(source, xpath), remove_tail)
@@ -1202,8 +1198,6 @@ class XML(object):
         | Remove Elements          | ${XML} | xpath=*/child      |
         | Element Should Not Exist | ${XML} | xpath=second/child |
         | Element Should Not Exist | ${XML} | xpath=third/child  |
-
-        New in Robot Framework 2.7.5.
         """
         source = self.get_element(source)
         for element in self.get_elements(source, xpath):
@@ -1257,8 +1251,6 @@ class XML(object):
         | Elements Should Be Equal | ${XML}   | <example/> |
 
         Use `Remove Element` to remove the whole element.
-
-        New in Robot Framework 2.7.5.
         """
         source = self.get_element(source)
         element = self.get_element(source, xpath)
@@ -1286,8 +1278,6 @@ class XML(object):
         | Elements Should Be Equal | ${elem}  | <first id="1">new text</first> |
         | Elements Should Be Equal | ${copy1} | <first id="new">text</first>   |
         | Elements Should Be Equal | ${copy2} | <first id="1">text</first>     |
-
-        New in Robot Framework 2.7.5.
         """
         return copy.deepcopy(self.get_element(source, xpath))
 
@@ -1343,18 +1333,24 @@ class XML(object):
 
         Use `Element To String` if you just need a string representation of
         the element.
-
-        New in Robot Framework 2.7.5.
         """
         path = os.path.abspath(path.replace('/', os.sep))
         elem = self.get_element(source)
-        if self.lxml_etree:
-            NameSpaceStripper().unstrip(elem)
         tree = self.etree.ElementTree(elem)
-        xml_declaration = {'xml_declaration': True} if self.modern_etree else {}
-        # Need to open/close output due to http://bugs.jython.org/issue2413
+        config = {'encoding': encoding}
+        if self.modern_etree:
+            config['xml_declaration'] = True
+        if self.lxml_etree:
+            elem = self._ns_stripper.unstrip(elem)
+            # https://bugs.launchpad.net/lxml/+bug/1660433
+            if tree.docinfo.doctype:
+                config['doctype'] = tree.docinfo.doctype
+            tree = self.etree.ElementTree(elem)
         with open(path, 'wb') as output:
-            tree.write(output, encoding=encoding, **xml_declaration)
+            if 'doctype' in config:
+                output.write(self.etree.tostring(tree, **config))
+            else:
+                tree.write(output, **config)
         logger.info('XML saved to <a href="file://%s">%s</a>.' % (path, path),
                     html=True)
 
@@ -1378,7 +1374,7 @@ class XML(object):
         | Should Be Equal | ${bold}        | ${True} |
 
         This keyword works only if lxml mode is taken into use when `importing`
-        the library. New in Robot Framework 2.8.5.
+        the library.
         """
         if not self.lxml_etree:
             raise RuntimeError("'Evaluate Xpath' keyword only works in lxml mode.")
@@ -1387,24 +1383,33 @@ class XML(object):
 
 class NameSpaceStripper(object):
 
-    def strip(self, elem, current_ns=None):
+    def __init__(self, etree, lxml_etree=False):
+        self.etree = etree
+        self.lxml_tree = lxml_etree
+
+    def strip(self, elem, preserve=True, current_ns=None, top=True):
         if elem.tag.startswith('{') and '}' in elem.tag:
             ns, elem.tag = elem.tag[1:].split('}', 1)
-            if ns != current_ns:
+            if preserve and ns != current_ns:
                 elem.attrib['xmlns'] = ns
                 current_ns = ns
         elif current_ns:
             elem.attrib['xmlns'] = ''
             current_ns = None
         for child in elem:
-            self.strip(child, current_ns)
+            self.strip(child, preserve, current_ns, top=False)
+        if top and not preserve and self.lxml_tree:
+            self.etree.cleanup_namespaces(elem)
 
-    def unstrip(self, elem, current_ns=None):
+    def unstrip(self, elem, current_ns=None, copied=False):
+        if not copied:
+            elem = copy.deepcopy(elem)
         ns = elem.attrib.pop('xmlns', current_ns)
         if ns:
             elem.tag = '{%s}%s' % (ns, elem.tag)
         for child in elem:
-            self.unstrip(child, ns)
+            self.unstrip(child, ns, copied=True)
+        return elem
 
 
 class ElementFinder(object):
@@ -1434,8 +1439,8 @@ class ElementFinder(object):
             if not xpath.replace('/', '').isalnum():
                 logger.warn('XPATHs containing non-ASCII characters and '
                             'other than tag names do not always work with '
-                            'Python/Jython versions prior to 2.7. Verify '
-                            'results manually and consider upgrading to 2.7.')
+                            'Python versions prior to 2.7. Verify results '
+                            'manually and consider upgrading to 2.7.')
             return xpath
 
 

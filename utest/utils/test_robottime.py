@@ -22,10 +22,10 @@ class TestTime(unittest.TestCase):
 
     def test_get_current_timetuple_excluding_millis(self):
         while True:
-            expected = time.localtime()
+            expected = time.localtime(time.time())
             actual = _get_timetuple()
             # make sure got same times and _get_timetuple() did not round millis
-            if expected == time.localtime() and actual[-1] > 0:
+            if expected == time.localtime(time.time()) and actual[-1] > 0:
                 break
         assert_equal(actual[:-1], expected[:6])
 
@@ -149,7 +149,8 @@ class TestTime(unittest.TestCase):
         assert_equal(timestr_to_secs(str(secs), round_to=None), secs)
 
     def test_timestr_to_secs_with_invalid(self):
-        for inv in ['', 'foo', 'foo days', '1sec 42 millis 3', '1min 2w', None]:
+        for inv in ['', 'foo', 'foo days', '1sec 42 millis 3', '1min 2w',
+                    '01:02:03:04', '01:02:03foo', 'foo01:02:03', None]:
             assert_raises_with_msg(ValueError, "Invalid time string '%s'." % inv,
                                    timestr_to_secs, inv)
 

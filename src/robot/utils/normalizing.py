@@ -13,10 +13,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import sys
-from collections import MutableMapping
+import re
 
-from .robottypes import is_dict_like
+from .platform import IRONPYTHON, JYTHON, PY_VERSION, PY3
+from .robottypes import is_dict_like, is_unicode, MutableMapping
 
 
 def normalize(string, ignore=(), caseless=True, spaceless=True):
@@ -25,19 +25,32 @@ def normalize(string, ignore=(), caseless=True, spaceless=True):
     By default string is turned to lower case and all whitespace is removed.
     Additional characters can be removed by giving them in ``ignore`` list.
     """
+    empty = u'' if is_unicode(string) else b''
+    if PY3 and isinstance(ignore, bytes):
+        # Iterating bytes in Python3 yields integers.
+        ignore = [bytes([i]) for i in ignore]
     if spaceless:
-        string = ''.join(string.split())
+        # https://bugs.jython.org/issue2772
+        if JYTHON and PY_VERSION < (2, 7, 2):
+            string = normalize_whitespace(string)
+        string = empty.join(string.split())
     if caseless:
         string = lower(string)
         ignore = [lower(i) for i in ignore]
-    for ign in ignore:
-        if ign in string:  # performance optimization
-            string = string.replace(ign, '')
+    # both if statements below enhance performance a little
+    if ignore:
+        for ign in ignore:
+            if ign in string:
+                string = string.replace(ign, empty)
     return string
 
 
+def normalize_whitespace(string):
+    return re.sub(r'\s', ' ', string, flags=re.UNICODE)
+
+
 # http://ironpython.codeplex.com/workitem/33133
-if sys.platform == 'cli' and sys.version_info < (2, 7, 5):
+if IRONPYTHON and PY_VERSION < (2, 7, 5):
     def lower(string):
         return ('A' + string).lower()[1:]
 else:

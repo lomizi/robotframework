@@ -22,20 +22,23 @@ from robot.errors import DataError, FrameworkError
 from robot.output import LOGGER, loggerhelper
 from robot.result.keywordremover import KeywordRemover
 from robot.result.flattenkeywordmatcher import validate_flatten_keyword
-from robot.utils import (abspath, escape, format_time, get_link_path,
-                         html_escape, is_list_like, py2to3,
-                         split_args_from_name_or_path)
+from robot.utils import (abspath, create_destination_directory, escape,
+                         format_time, get_link_path, html_escape, is_list_like,
+                         py2to3, split_args_from_name_or_path)
 
-from .gatherfailed import gather_failed_tests
+from .gatherfailed import gather_failed_tests, gather_failed_suites
 
 
 @py2to3
 class _BaseSettings(object):
-    _cli_opts = {'Name'             : ('name', None),
+    _cli_opts = {'RPA'              : ('rpa', None),
+                 'Name'             : ('name', None),
                  'Doc'              : ('doc', None),
                  'Metadata'         : ('metadata', []),
                  'TestNames'        : ('test', []),
+                 'TaskNames'        : ('task', []),
                  'ReRunFailed'      : ('rerunfailed', 'NONE'),
+                 'ReRunFailedSuites': ('rerunfailedsuites', 'NONE'),
                  'SuiteNames'       : ('suite', []),
                  'SetTag'           : ('settag', []),
                  'Include'          : ('include', []),
@@ -78,10 +81,12 @@ class _BaseSettings(object):
     def _process_cli_opts(self, opts):
         for name, (cli_name, default) in self._cli_opts.items():
             value = opts[cli_name] if cli_name in opts else default
-            if default == [] and not is_list_like(value):
-                value = [value]
+            if isinstance(default, list):
+                # Copy mutable values and support list values as scalars.
+                value = list(value) if is_list_like(value) else [value]
             self[name] = self._process_value(name, value)
-        self['TestNames'] += self['ReRunFailed']
+        self['TestNames'] += self['ReRunFailed'] + self['TaskNames']
+        self['SuiteNames'] += self['ReRunFailedSuites']
 
     def __setitem__(self, name, value):
         if name not in self._cli_opts:
@@ -91,14 +96,14 @@ class _BaseSettings(object):
     def _process_value(self, name, value):
         if name == 'ReRunFailed':
             return gather_failed_tests(value)
+        if name == 'ReRunFailedSuites':
+            return gather_failed_suites(value)
         if name == 'LogLevel':
             return self._process_log_level(value)
         if value == self._get_default_value(name):
             return value
-        if name in ['Name', 'Doc', 'LogTitle', 'ReportTitle']:
-            if name == 'Doc':
-                value = self._escape_as_data(value)
-            return value.replace('_', ' ')
+        if name == 'Doc':
+            return self._escape_as_data(value)
         if name in ['Metadata', 'TagDoc']:
             if name == 'Metadata':
                 value = [self._escape_as_data(v) for v in value]
@@ -121,6 +126,8 @@ class _BaseSettings(object):
             return [v for v in [self._process_tag_stat_link(v) for v in value] if v]
         if name == 'Randomize':
             return self._process_randomize_value(value)
+        if name == 'MaxErrorLines':
+            return self._process_max_error_lines(value)
         if name == 'RemoveKeywords':
             self._validate_remove_keywords(value)
         if name == 'FlattenKeywords':
@@ -151,6 +158,15 @@ class _BaseSettings(object):
         if not loggerhelper.IsLogged(log_level)(default):
             raise DataError("Default visible log level '%s' is lower than "
                             "log level '%s'" % (default, log_level))
+
+    def _process_max_error_lines(self, value):
+        if not value or value.upper() == 'NONE':
+            return None
+        value = self._convert_to_integer('maxerrorlines', value)
+        if value < 10:
+            raise DataError("Option '--maxerrorlines' expected an integer "
+                            "value greater that 10 but got '%s'." % value)
+        return value
 
     def _process_randomize_value(self, original):
         value = original.lower()
@@ -193,7 +209,7 @@ class _BaseSettings(object):
             return None
         name = self._process_output_name(option, name)
         path = abspath(os.path.join(self['OutputDir'], name))
-        self._create_output_dir(os.path.dirname(path), option)
+        create_destination_directory(path, '%s file' % option.lower())
         return path
 
     def _process_output_name(self, option, name):
@@ -214,16 +230,7 @@ class _BaseSettings(object):
             return '.txt'
         raise FrameworkError("Invalid output file type: %s" % type_)
 
-    def _create_output_dir(self, path, type_):
-        try:
-            if not os.path.exists(path):
-                os.makedirs(path)
-        except EnvironmentError as err:
-            raise DataError("Creating %s file directory '%s' failed: %s"
-                            % (type_.lower(), path, err.strerror))
-
     def _process_metadata_or_tagdoc(self, value):
-        value = value.replace('_', ' ')
         if ':' in value:
             return value.split(':', 1)
         return value, ''
@@ -241,7 +248,7 @@ class _BaseSettings(object):
             pattern, title = pattern.rsplit(':', 1)
         else:
             title = ''
-        return self._format_tag_patterns(pattern), title.replace('_', ' ')
+        return self._format_tag_patterns(pattern), title
 
     def _format_tag_patterns(self, pattern):
         for search, replace in [('&', 'AND'), ('AND', ' AND '), ('OR', ' OR '),
@@ -366,17 +373,26 @@ class _BaseSettings(object):
     def console_colors(self):
         return self['ConsoleColors']
 
+    @property
+    def rpa(self):
+        return self['RPA']
+
+    @rpa.setter
+    def rpa(self, value):
+        self['RPA'] = value
+
 
 class RobotSettings(_BaseSettings):
-    _extra_cli_opts = {'Output'             : ('output', 'output.xml'),
+    _extra_cli_opts = {'Extension'          : ('extension', None),
+                       'Output'             : ('output', 'output.xml'),
                        'LogLevel'           : ('loglevel', 'INFO'),
+                       'MaxErrorLines'      : ('maxerrorlines', 40),
                        'DryRun'             : ('dryrun', False),
                        'ExitOnFailure'      : ('exitonfailure', False),
                        'ExitOnError'        : ('exitonerror', False),
                        'SkipTeardownOnExit' : ('skipteardownonexit', False),
                        'Randomize'          : ('randomize', 'NONE'),
                        'RunEmptySuite'      : ('runemptysuite', False),
-                       'WarnOnSkipped'      : ('warnonskippedfiles', False),
                        'Variables'          : ('variable', []),
                        'VariableFiles'      : ('variablefile', []),
                        'PreRunModifiers'    : ('prerunmodifier', []),
@@ -390,6 +406,7 @@ class RobotSettings(_BaseSettings):
 
     def get_rebot_settings(self):
         settings = RebotSettings()
+        settings.start_timestamp = self.start_timestamp
         settings._opts.update(self._opts)
         for name in ['Variables', 'VariableFiles', 'Listeners']:
             del(settings._opts[name])
@@ -488,6 +505,10 @@ class RobotSettings(_BaseSettings):
         return self['ConsoleMarkers']
 
     @property
+    def max_error_lines(self):
+        return self['MaxErrorLines']
+
+    @property
     def pre_run_modifiers(self):
         return self['PreRunModifiers']
 
@@ -502,6 +523,10 @@ class RobotSettings(_BaseSettings):
     @property
     def variable_files(self):
         return self['VariableFiles']
+
+    @property
+    def extension(self):
+        return self['Extension']
 
 
 class RebotSettings(_BaseSettings):
@@ -540,6 +565,7 @@ class RebotSettings(_BaseSettings):
         if not self.log:
             return {}
         return {
+            'rpa': self.rpa,
             'title': html_escape(self['LogTitle'] or ''),
             'reportURL': self._url_from_path(self.log, self.report),
             'splitLogBase': os.path.basename(os.path.splitext(self.log)[0]),
@@ -551,6 +577,7 @@ class RebotSettings(_BaseSettings):
         if not self.report:
             return {}
         return {
+            'rpa': self.rpa,
             'title': html_escape(self['ReportTitle'] or ''),
             'logURL': self._url_from_path(self.report, self.log),
             'background' : self._resolve_background_colors(),

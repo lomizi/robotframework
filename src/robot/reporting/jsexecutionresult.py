@@ -13,16 +13,15 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import sys
 import time
+from collections import OrderedDict
 
-from robot.utils import format_time, OrderedDict, IRONPYTHON
+from robot.utils import IRONPYTHON, PY_VERSION
 
 from .stringcache import StringIndex
 
-
 # http://ironpython.codeplex.com/workitem/31549
-if IRONPYTHON and sys.version_info < (2, 7, 2):
+if IRONPYTHON and PY_VERSION < (2, 7, 2):
     int = long
 
 
@@ -37,14 +36,12 @@ class JsExecutionResult(object):
         self.split_results = split_results or []
 
     def _get_data(self, statistics, errors, basemillis):
-        gentime = time.localtime()
         return OrderedDict([
             ('stats', statistics),
             ('errors', errors),
             ('baseMillis', basemillis),
-            ('generatedMillis', int(time.mktime(gentime) * 1000 - basemillis)),
-            ('generatedTimestamp', format_time(gentime, gmtsep=' '))
-            ])
+            ('generated', int(time.time() * 1000) - basemillis)
+        ])
 
     def remove_data_not_needed_in_report(self):
         self.data.pop('errors')

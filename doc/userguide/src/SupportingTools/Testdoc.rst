@@ -37,6 +37,9 @@ Options
  -s, --suite <name>            Include suites by name.
  -i, --include <tag>           Include tests by tags.
  -e, --exclude <tag>           Exclude tests by tags.
+ -A, --argumentfile <path>     Text file to read more arguments from. Works
+                               exactly like `argument files`_ when running
+                               tests. New in Robot Framework 3.0.2.
  -h, --help                    Print this help in the console.
 
 All options except :option:`--title` have exactly the same semantics as same
@@ -57,6 +60,6 @@ Jython and IronPython). It can be executed as an installed module like
 
 Examples::
 
-  python -m robot.testdoc my_test.html testdoc.html
-  jython -m robot.testdoc --name smoke_tests --include smoke path/to/my_tests smoke.html
-  ipy path/to/robot/testdoc.py first_suite.txt second_suite.txt output.html
+  python -m robot.testdoc my_test.robot testdoc.html
+  jython -m robot.testdoc --name "Smoke tests" --include smoke path/to/tests smoke.html
+  ipy path/to/robot/testdoc.py first.robot second.robot output.html

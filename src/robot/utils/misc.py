@@ -15,10 +15,10 @@
 
 from __future__ import division
 
-import inspect
+from operator import add, sub
 
-from .platform import IRONPYTHON
-from .robottypes import is_integer, is_unicode
+from .platform import PY2
+from .robottypes import is_integer
 from .unic import unic
 
 
@@ -32,16 +32,24 @@ def roundup(number, ndigits=0, return_type=None):
     With the built-in ``round()`` rounding equally close numbers as well as
     the return type depends on the Python version.
     """
-    sign = 1 if number >= 0 else -1
-    precision = 10 ** (-1 * ndigits)
+    result = _roundup(number, ndigits)
     if not return_type:
         return_type = float if ndigits > 0 else int
-    quotient, remainder = divmod(abs(number), precision)
-    # https://github.com/IronLanguages/main/issues/1236
-    if (not (IRONPYTHON and (quotient * precision + remainder > abs(number)))
-        and remainder >= precision / 2):
-        quotient += 1
-    return sign * return_type(quotient * precision)
+    return return_type(result)
+
+
+# Python 2 rounds half away from zero (as taught in school) but Python 3
+# uses "bankers' rounding" that rounds half towards the even number. We want
+# consistent rounding and expect Python 2 style to be more familiar for users.
+if PY2:
+    _roundup = round
+else:
+    def _roundup(number, ndigits):
+        precision = 10 ** (-1 * ndigits)
+        if number % (0.5 * precision) == 0 and number % precision != 0:
+            operator = add if number > 0 else sub
+            number = operator(number, 0.1 * precision)
+        return round(number, ndigits)
 
 
 def printable_name(string, code_style=False):
@@ -66,35 +74,33 @@ def printable_name(string, code_style=False):
     if code_style and '_' in string:
         string = string.replace('_', ' ')
     parts = string.split()
-    if not parts:
-        return ''
     if code_style and len(parts) == 1 \
             and not (string.isalpha() and string.islower()):
-        parts = _camelCaseSplit(list(parts[0]))
+        parts = _split_camel_case(parts[0])
     return ' '.join(part[0].upper() + part[1:] for part in parts)
 
 
-def _camelCaseSplit(chars):
+def _split_camel_case(string):
+    tokens = []
     token = []
-    for prev, char, next in zip([''] + chars, chars, chars[1:] + ['']):
-        if _isCamelCaseBoundary(prev, char, next):
+    for prev, char, next in zip(' ' + string, string, string[1:] + ' '):
+        if _is_camel_case_boundary(prev, char, next):
             if token:
-                yield ''.join(token)
+                tokens.append(''.join(token))
             token = [char]
         else:
             token.append(char)
     if token:
-        yield ''.join(token)
+        tokens.append(''.join(token))
+    return tokens
 
 
-def _isCamelCaseBoundary(prev, char, next):
+def _is_camel_case_boundary(prev, char, next):
     if prev.isdigit():
         return not char.isdigit()
     if char.isupper():
         return next.islower() or prev.isalpha() and not prev.isupper()
-    if char.isdigit():
-        return not prev.isdigit()
-    return False
+    return char.isdigit()
 
 
 def plural_or_not(item):
@@ -103,29 +109,18 @@ def plural_or_not(item):
 
 
 def seq2str(sequence, quote="'", sep=', ', lastsep=' and '):
-    """Returns sequence in format 'item 1', 'item 2' and 'item 3'"""
-    quote_elem = lambda string: quote + unic(string) + quote
+    """Returns sequence in format `'item 1', 'item 2' and 'item 3'`."""
+    sequence = [quote + unic(item) + quote for item in sequence]
     if not sequence:
         return ''
     if len(sequence) == 1:
-        return quote_elem(sequence[0])
-    elems = [quote_elem(s) for s in sequence[:-2]]
-    elems.append(quote_elem(sequence[-2]) + lastsep + quote_elem(sequence[-1]))
-    return sep.join(elems)
+        return sequence[0]
+    last_two = lastsep.join(sequence[-2:])
+    return sep.join(sequence[:-2] + [last_two])
 
 
 def seq2str2(sequence):
-    """Returns sequence in format [ item 1 | item 2 | ... ] """
+    """Returns sequence in format `[ item 1 | item 2 | ... ]`."""
     if not sequence:
         return '[ ]'
     return '[ %s ]' % ' | '.join(unic(item) for item in sequence)
-
-
-def getdoc(item):
-    doc = inspect.getdoc(item) or u''
-    if is_unicode(doc):
-        return doc
-    try:
-        return doc.decode('UTF-8')
-    except UnicodeDecodeError:
-        return unic(doc)

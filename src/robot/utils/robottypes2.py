@@ -13,7 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from collections import Mapping
+from collections import Mapping, MutableMapping
 from UserDict import UserDict
 from UserString import UserString
 from types import ClassType, NoneType
@@ -39,7 +39,9 @@ def is_bytes(item):
 
 
 def is_string(item):
-    return isinstance(item, basestring)
+    # Returns False with `b'bytes'` on IronPython on purpose. Results of
+    # `isinstance(item, basestring)` would depend on IronPython 2.7.x version.
+    return isinstance(item, (str, unicode))
 
 
 def is_unicode(item):
@@ -47,7 +49,7 @@ def is_unicode(item):
 
 
 def is_list_like(item):
-    if isinstance(item, (basestring, bytes, bytearray, UserString, String,
+    if isinstance(item, (str, unicode, bytes, bytearray, UserString, String,
                          file)):
         return False
     try:

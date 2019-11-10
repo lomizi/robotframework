@@ -1,5 +1,5 @@
 *** Settings ***
-Library           UnicodeLibrary
+Library           NonAsciiLibrary
 Library           TraceLogArgsLibrary.py
 
 *** Test Cases ***
@@ -22,7 +22,7 @@ Return Non Ascii String
     Set Variable    Hyvää 'Päivää'\n
 
 Return Object With Unicode Repr
-    Print and Return Unicode Object
+    Print and Return NonASCII Object
 
 Return Object with Unicode Repr With Non Ascii Chars
     Return Object With Invalid Repr
@@ -30,7 +30,7 @@ Return Object with Unicode Repr With Non Ascii Chars
 Return Object with Non Ascii String from Repr
     Return Object With Non Ascii String Repr
 
-*** User Keywords ***
+*** Keywords ***
 Return Value From UK
     ${return} =    Set Variable    value
     [Return]    ${return}

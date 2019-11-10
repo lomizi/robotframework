@@ -31,16 +31,21 @@ Save Using Invalid Encoding
     Check Test Case    ${TESTNAME}
 
 Save Non-ASCII Using ASCII On Python 2
-    [Tags]    no-py3
+    [Tags]    require-py2
     Check Test Case    ${TESTNAME}
 
 Save Non-ASCII Using ASCII On Python 3
-    [Tags]    no-py2
+    [Tags]    require-py3
     Check Test Case    ${TESTNAME}
 
 Doctype is not preserved
-    [Tags]    no-ipy
     Check Test Case    ${TESTNAME}
 
 Comments and processing instructions are removed
+    Check Test Case    ${TESTNAME}
+
+Element can be further modified after saving
+    Check Test Case    ${TESTNAME}
+
+Element with namespaces can be further modified after saving
     Check Test Case    ${TESTNAME}

@@ -42,14 +42,14 @@ from robot.conf import RobotSettings
 from robot.htmldata import HtmlFileWriter, ModelWriter, JsonWriter, TESTDOC
 from robot.parsing import disable_curdir_processing
 from robot.running import TestSuiteBuilder
-from robot.utils import (abspath, Application, file_writer, format_time,
-                         get_link_path, html_escape, html_format, is_string,
-                         secs_to_timestr, seq2str2, timestr_to_secs, unescape,
-                         IRONPYTHON)
+from robot.utils import (abspath, Application, file_writer, get_link_path,
+                         html_escape, html_format, IRONPYTHON, is_string,
+                         PY_VERSION, secs_to_timestr, seq2str2,
+                         timestr_to_secs, unescape)
 
 
 # http://ironpython.codeplex.com/workitem/31549
-if IRONPYTHON and sys.version_info < (2, 7, 2):
+if IRONPYTHON and PY_VERSION < (2, 7, 2):
     int = long
 
 
@@ -78,6 +78,20 @@ Options
   -s --suite name *      Include suites by name.
   -i --include tag *     Include tests by tags.
   -e --exclude tag *     Exclude tests by tags.
+  -A --argumentfile path *  Text file to read more arguments from. Use special
+                          path `STDIN` to read contents from the standard input
+                          stream. File can have both options and data sources
+                          one per line. Contents do not need to be escaped but
+                          spaces in the beginning and end of lines are removed.
+                          Empty lines and lines starting with a hash character
+                          (#) are ignored. New in Robot Framework 3.0.2.
+                          Example file:
+                          |  --name Example
+                          |  # This is a comment line
+                          |  my_tests.robot
+                          |  output.html
+                          Examples:
+                          --argumentfile argfile.txt --argumentfile STDIN
   -h -? --help           Print this help.
 
 All options except --title have exactly same semantics as same options have
@@ -96,7 +110,7 @@ Jython and IronPython). It can be executed as an installed module like
 
 Examples:
 
-  python -m robot.testdoc my_test.html testdoc.html
+  python -m robot.testdoc my_test.robot testdoc.html
   jython -m robot.testdoc -N smoke_tests -i smoke path/to/my_tests smoke.html
   ipy path/to/robot/testdoc.py first_suite.txt second_suite.txt output.html
 
@@ -117,7 +131,7 @@ class TestDoc(Application):
         self.console(outfile)
 
     def _write_test_doc(self, suite, outfile, title):
-        with file_writer(outfile) as output:
+        with file_writer(outfile, usage='Testdoc output') as output:
             model_writer = TestdocModelWriter(output, suite, title)
             HtmlFileWriter(output, model_writer).write(TESTDOC)
 
@@ -146,12 +160,10 @@ class TestdocModelWriter(ModelWriter):
         self._output.write('</script>\n')
 
     def write_data(self):
-        generated_time = time.localtime()
         model = {
             'suite': JsonConverter(self._output_path).convert(self._suite),
             'title': self._title,
-            'generated': format_time(generated_time, gmtsep=' '),
-            'generatedMillis': int(time.mktime(generated_time) * 1000)
+            'generated': int(time.time() * 1000)
         }
         JsonWriter(self._output).write_json('testdoc = ', model)
 
@@ -246,11 +258,9 @@ class JsonConverter(object):
         if timeout is None:
             return ''
         try:
-            tout = secs_to_timestr(timestr_to_secs(timeout.value))
+            tout = secs_to_timestr(timestr_to_secs(timeout))
         except ValueError:
-            tout = timeout.value
-        if timeout.message:
-            tout += ' :: ' + timeout.message
+            tout = timeout
         return tout
 
 

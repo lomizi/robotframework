@@ -15,9 +15,10 @@
 
 import re
 
-from robot.errors import DataError, ExecutionFailed, HandlerExecutionFailed
+from robot.errors import (DataError, ExecutionStatus, HandlerExecutionFailed,
+                          VariableError)
 from robot.utils import (ErrorDetails, format_assign_message, get_error_message,
-                         is_number, is_string, prepr, type_name)
+                         is_number, is_string, prepr, rstrip, type_name)
 
 
 class VariableAssignment(object):
@@ -64,8 +65,10 @@ class AssignmentValidator(object):
         if self._seen_assign_mark:
             raise DataError("Assign mark '=' can be used only with the last "
                             "variable.")
-        self._seen_assign_mark = variable.endswith('=')
-        return variable.rstrip('= ')
+        if variable.endswith('='):
+            self._seen_assign_mark = True
+            return rstrip(variable[:-1])
+        return variable
 
     def _validate_state(self, is_list, is_dict):
         if is_list and self._seen_list:
@@ -96,7 +99,7 @@ class VariableAssigner(object):
             self.assign(failure.return_value)
 
     def _get_failure(self, exc_type, exc_val, exc_tb):
-        if isinstance(exc_val, ExecutionFailed):
+        if isinstance(exc_val, ExecutionStatus):
             return exc_val
         exc_info = (exc_type, exc_val, exc_tb)
         return HandlerExecutionFailed(ErrorDetails(exc_info))
@@ -124,8 +127,8 @@ class VariableAssigner(object):
         try:
             setattr(var, attr, value)
         except:
-            raise DataError("Setting attribute '%s' to variable '%s' failed: %s"
-                            % (attr, base, get_error_message()))
+            raise VariableError("Setting attribute '%s' to variable '%s' "
+                                "failed: %s" % (attr, base, get_error_message()))
         return True
 
     def _split_extended_assign(self, name):
@@ -197,7 +200,7 @@ class _MultiReturnValueResolver(object):
         self._raise('Expected list-like value, got %s.' % type_name(ret))
 
     def _raise(self, error):
-        raise DataError('Cannot set variables: %s' % error)
+        raise VariableError('Cannot set variables: %s' % error)
 
     def _validate(self, return_count):
         raise NotImplementedError

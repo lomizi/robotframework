@@ -32,9 +32,8 @@ else:
 @py2to3
 class _Timeout(Sortable):
 
-    def __init__(self, timeout=None, message='', variables=None):
+    def __init__(self, timeout=None, variables=None):
         self.string = timeout or ''
-        self.message = message
         self.secs = -1
         self.starttime = -1
         self.error = None
@@ -52,7 +51,6 @@ class _Timeout(Sortable):
                 return
             self.secs = timestr_to_secs(self.string)
             self.string = secs_to_timestr(self.secs)
-            self.message = variables.replace_string(self.message)
         except (DataError, ValueError) as err:
             self.secs = 0.000001  # to make timeout active
             self.error = (u'Setting %s timeout failed: %s'
@@ -79,10 +77,12 @@ class _Timeout(Sortable):
         if not self.active:
             raise FrameworkError('Timeout is not active')
         timeout = self.time_left()
+        error = TimeoutError(self._timeout_error,
+                             test_timeout=isinstance(self, TestTimeout))
         if timeout <= 0:
-            raise TimeoutError(self.get_message())
+            raise error
         executable = lambda: runnable(*(args or ()), **(kwargs or {}))
-        return Timeout(timeout, self._timeout_error).execute(executable)
+        return Timeout(timeout, error).execute(executable)
 
     def get_message(self):
         if not self.active:
@@ -94,8 +94,6 @@ class _Timeout(Sortable):
 
     @property
     def _timeout_error(self):
-        if self.message:
-            return self.message
         return '%s timeout %s exceeded.' % (self.type, self.string)
 
     def __unicode__(self):
@@ -118,6 +116,11 @@ class _Timeout(Sortable):
 class TestTimeout(_Timeout):
     type = 'Test'
     _keyword_timeout_occurred = False
+
+    def __init__(self, timeout=None, variables=None, rpa=False):
+        if rpa:
+            self.type = 'Task'
+        _Timeout.__init__(self, timeout, variables)
 
     def set_keyword_timeout(self, timeout_occurred):
         if timeout_occurred:

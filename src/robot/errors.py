@@ -73,6 +73,14 @@ class VariableError(DataError):
     """
 
 
+class KeywordError(DataError):
+    """Used when no keyword is found or there is more than one match.
+
+    KeywordErrors are caught by keywords that run other keywords
+    (e.g. `Run Keyword And Expect Error`).
+    """
+
+
 class TimeoutError(RobotError):
     """Used when a test or keyword timeout occurs.
 
@@ -82,25 +90,39 @@ class TimeoutError(RobotError):
     Error`).
     """
 
+    def __init__(self, message='', test_timeout=True):
+        RobotError.__init__(self, message)
+        self.test_timeout = test_timeout
+
+    @property
+    def keyword_timeout(self):
+        return not self.test_timeout
+
 
 class Information(RobotError):
     """Used by argument parser with --help or --version."""
 
 
-class ExecutionFailed(RobotError):
-    """Used for communicating failures in test execution."""
+class ExecutionStatus(RobotError):
+    """Base class for exceptions communicating status in test execution."""
 
-    def __init__(self, message, timeout=False, syntax=False, exit=False,
-                 continue_on_failure=False, return_value=None):
+    def __init__(self, message, test_timeout=False, keyword_timeout=False,
+                 syntax=False, exit=False, continue_on_failure=False,
+                 return_value=None):
         if '\r\n' in message:
             message = message.replace('\r\n', '\n')
         from robot.utils import cut_long_message
         RobotError.__init__(self, cut_long_message(message))
-        self.timeout = timeout
+        self.test_timeout = test_timeout
+        self.keyword_timeout = keyword_timeout
         self.syntax = syntax
         self.exit = exit
         self._continue_on_failure = continue_on_failure
         self.return_value = return_value
+
+    @property
+    def timeout(self):
+        return self.test_timeout or self.keyword_timeout
 
     @property
     def dont_continue(self):
@@ -114,14 +136,19 @@ class ExecutionFailed(RobotError):
     def continue_on_failure(self, continue_on_failure):
         self._continue_on_failure = continue_on_failure
         for child in getattr(self, '_errors', []):
-            child.continue_on_failure = continue_on_failure
+            if child is not self:
+                child.continue_on_failure = continue_on_failure
 
     def can_continue(self, teardown=False, templated=False, dry_run=False):
         if dry_run:
             return True
-        if self.dont_continue and not (teardown and self.syntax):
+        if self.syntax or self.exit or self.test_timeout:
             return False
-        if teardown or templated:
+        if templated:
+            return True
+        if self.keyword_timeout:
+            return False
+        if teardown:
             return True
         return self.continue_on_failure
 
@@ -133,16 +160,24 @@ class ExecutionFailed(RobotError):
         return 'FAIL'
 
 
+class ExecutionFailed(ExecutionStatus):
+    """Used for communicating failures in test execution."""
+
+
 class HandlerExecutionFailed(ExecutionFailed):
 
     def __init__(self, details):
-        timeout = isinstance(details.error, TimeoutError)
-        syntax = (isinstance(details.error, DataError) and
-                  not isinstance(details.error, VariableError))
-        exit_on_failure = self._get(details.error, 'EXIT_ON_FAILURE')
-        continue_on_failure = self._get(details.error, 'CONTINUE_ON_FAILURE')
-        ExecutionFailed.__init__(self, details.message, timeout, syntax,
-                                 exit_on_failure, continue_on_failure)
+        error = details.error
+        timeout = isinstance(error, TimeoutError)
+        test_timeout = timeout and error.test_timeout
+        keyword_timeout = timeout and error.keyword_timeout
+        syntax = (isinstance(error, DataError)
+                  and not isinstance(error, (KeywordError, VariableError)))
+        exit_on_failure = self._get(error, 'EXIT_ON_FAILURE')
+        continue_on_failure = self._get(error, 'CONTINUE_ON_FAILURE')
+        ExecutionFailed.__init__(self, details.message, test_timeout,
+                                 keyword_timeout, syntax, exit_on_failure,
+                                 continue_on_failure)
         self.full_message = details.message
         self.traceback = details.traceback
 
@@ -160,14 +195,27 @@ class ExecutionFailures(ExecutionFailed):
     def _format_message(self, messages):
         if len(messages) == 1:
             return messages[0]
+        prefix = 'Several failures occurred:'
+        if any(msg.startswith('*HTML*') for msg in messages):
+            prefix = '*HTML* ' + prefix
+            messages = self._format_html_messages(messages)
         return '\n\n'.join(
-            ['Several failures occurred:'] +
+            [prefix] +
             ['%d) %s' % (i, m) for i, m in enumerate(messages, start=1)]
         )
 
+    def _format_html_messages(self, messages):
+        from robot.utils import html_escape
+        for msg in messages:
+            if msg.startswith('*HTML*'):
+                yield msg[6:].lstrip()
+            else:
+                yield html_escape(msg)
+
     def _get_attrs(self, errors):
         return {
-            'timeout': any(e.timeout for e in errors),
+            'test_timeout': any(e.test_timeout for e in errors),
+            'keyword_timeout': any(e.keyword_timeout for e in errors),
             'syntax': any(e.syntax for e in errors),
             'exit': any(e.exit for e in errors),
             'continue_on_failure': all(e.continue_on_failure for e in errors)
@@ -201,14 +249,14 @@ class UserKeywordExecutionFailed(ExecutionFailures):
         return '%s\n\nAlso keyword teardown failed:\n%s' % (run_msg, td_msg)
 
 
-class ExecutionPassed(ExecutionFailed):
+class ExecutionPassed(ExecutionStatus):
     """Base class for all exceptions communicating that execution passed.
 
     Should not be raised directly, but more detailed exceptions used instead.
     """
 
     def __init__(self, message=None, **kwargs):
-        ExecutionFailed.__init__(self, message or self._get_message(), **kwargs)
+        ExecutionStatus.__init__(self, message or self._get_message(), **kwargs)
         self._earlier_failures = []
 
     def _get_message(self):
@@ -249,8 +297,10 @@ class ExitForLoop(ExecutionPassed):
 class ReturnFromKeyword(ExecutionPassed):
     """Used by 'Return From Keyword' keyword."""
 
-    def __init__(self, return_value):
+    def __init__(self, return_value=None, failures=None):
         ExecutionPassed.__init__(self, return_value=return_value)
+        if failures:
+            self.set_earlier_failures(failures)
 
 
 class RemoteError(RobotError):

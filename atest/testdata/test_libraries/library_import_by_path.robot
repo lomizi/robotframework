@@ -6,13 +6,15 @@ Library           dir_for_libs/MyLibFile2.py
 Library           dir_for_libs/lib1/Lib.py    WITH NAME    lib1
 Library           dir_for_libs/lib2/Lib.py    WITH NAME    lib2
 Library           ${MYVAR}/MyLibDir2/
-Library           MyJavaLib.java
-Library           MyJavaLib2.class
 Library           MyInvalidLibFile.py
 Library           library_import_by_path.robot
 Library           library_scope/
 Library           spaces in path/SpacePathLib.py
 Library           this_does_not_exist.py
+Library           MyJavaLib.java
+Library           MyJavaLib2.class
+Library           nön_äscii_dïr/valid.py
+Library           nön_äscii_dïr/invalid.py
 
 *** Variables ***
 ${MYVAR}          ${CURDIR}${/}dir_for_libs
@@ -50,3 +52,7 @@ Importing Java Library File By Path With .class Extension
 Importing By Path Having Spaces
     ${ret} =    Spaces in Library Path
     Should Be Equal    ${ret}    here was a bug
+
+Importing By Path Containing Non-ASCII Characters
+    ${ret} =    Keyword in non ASCII dir
+    Should Be Equal    ${ret}    Keyword in 'nön_äscii_dïr'!
