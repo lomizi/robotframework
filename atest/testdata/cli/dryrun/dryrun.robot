@@ -100,18 +100,6 @@ Keyword teardown with existing variable is resolved and executed
     Keyword with teardown with existing variable
     This is validated
 
-For Loops
-    [Documentation]    FAIL    Keyword 'resource.Anarchy in the UK' expected 3 arguments, got 2.
-    FOR    ${i}    IN RANGE    10
-        Log    ${i}
-        Simple UK
-    END
-    For Loop in UK
-    FOR    ${a}    ${b}    IN RANGE    ${NONE}
-        Anarchy in the UK    1    2
-    END
-    This is validated
-
 Non-existing keyword name
     [Documentation]    FAIL    No keyword with name 'Does not exist' found.
     Does not exist
@@ -124,7 +112,7 @@ Invalid syntax in UK
 
 Multiple Failures
     [Documentation]    FAIL    Several failures occurred:\n\n
-    ...    1) Keyword 'BuiltIn.Should Be Equal' expected 2 to 6 arguments, got 1.\n\n
+    ...    1) Keyword 'BuiltIn.Should Be Equal' expected 2 to 8 arguments, got 1.\n\n
     ...    2) Invalid argument specification: Invalid argument syntax '${arg'.\n\n
     ...    3) Keyword 'Some Return Value' expected 2 arguments, got 3.\n\n
     ...    4) No keyword with name 'Yet another non-existing keyword' found.\n\n
@@ -191,6 +179,3 @@ Keyword with keywords not run in dry-run
     Keyword not run in dry-run
     Another keyword not run in dry-run
     This is validated
-
-This is validated
-    Log    This is validated

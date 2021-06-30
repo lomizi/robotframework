@@ -16,7 +16,7 @@
 import re
 
 from robot.errors import VariableError
-from robot.utils import is_string, py2to3
+from robot.utils import is_string, py3to2, rstrip
 
 
 def search_variable(string, identifiers='$@&%*', ignore_errors=False):
@@ -25,7 +25,52 @@ def search_variable(string, identifiers='$@&%*', ignore_errors=False):
     return VariableSearcher(identifiers, ignore_errors).search(string)
 
 
-@py2to3
+def contains_variable(string, identifiers='$@&'):
+    match = search_variable(string, identifiers, ignore_errors=True)
+    return bool(match)
+
+
+def is_variable(string, identifiers='$@&'):
+    match = search_variable(string, identifiers, ignore_errors=True)
+    return match.is_variable()
+
+
+def is_scalar_variable(string):
+    return is_variable(string, '$')
+
+
+# See comment to `VariableMatch.is_list/dict_variable` for explanation why
+# `is_list/dict_variable` need different implementation than
+# `is_scalar_variable` above. This ought to be changed in RF 4.0.
+
+def is_list_variable(string):
+    match = search_variable(string, '@', ignore_errors=True)
+    return match.is_list_variable()
+
+
+def is_dict_variable(string):
+    match = search_variable(string, '&', ignore_errors=True)
+    return match.is_dict_variable()
+
+
+def is_assign(string, identifiers='$@&', allow_assign_mark=False):
+    match = search_variable(string, identifiers, ignore_errors=True)
+    return match.is_assign(allow_assign_mark)
+
+
+def is_scalar_assign(string, allow_assign_mark=False):
+    return is_assign(string, '$', allow_assign_mark)
+
+
+def is_list_assign(string, allow_assign_mark=False):
+    return is_assign(string, '@', allow_assign_mark)
+
+
+def is_dict_assign(string, allow_assign_mark=False):
+    return is_assign(string, '&', allow_assign_mark)
+
+
+@py3to2
 class VariableMatch(object):
 
     def __init__(self, string, identifier=None, base=None, items=(),
@@ -62,28 +107,45 @@ class VariableMatch(object):
     def after(self):
         return self.string[self.end:] if self.identifier else None
 
-    @property
     def is_variable(self):
-        return bool(self.identifier and self.base and self.start == 0
+        return bool(self.identifier
+                    and self.base
+                    and self.start == 0
                     and self.end == len(self.string))
 
-    @property
+    def is_scalar_variable(self):
+        return self.identifier == '$' and self.is_variable()
+
     def is_list_variable(self):
-        return bool(self.is_variable and self.identifier == '@'
-                    and not self.items)
+        return self.identifier == '@' and self.is_variable()
 
-    @property
     def is_dict_variable(self):
-        return bool(self.is_variable and self.identifier == '&'
-                    and not self.items)
+        return self.identifier == '&' and self.is_variable()
 
-    def __nonzero__(self):
+    def is_assign(self, allow_assign_mark=False):
+        if allow_assign_mark and self.string.endswith('='):
+            return search_variable(rstrip(self.string[:-1])).is_assign()
+        return (self.is_variable()
+                and self.identifier in '$@&'
+                and not self.items
+                and not search_variable(self.base))
+
+    def is_scalar_assign(self, allow_assign_mark=False):
+        return self.identifier == '$' and self.is_assign(allow_assign_mark)
+
+    def is_list_assign(self, allow_assign_mark=False):
+        return self.identifier == '@' and self.is_assign(allow_assign_mark)
+
+    def is_dict_assign(self, allow_assign_mark=False):
+        return self.identifier == '&' and self.is_assign(allow_assign_mark)
+
+    def __bool__(self):
         return self.identifier is not None
 
-    def __unicode__(self):
+    def __str__(self):
         if not self:
             return '<no match>'
-        items = ''.join('[%s]' % i for i in self.item) if self.items else ''
+        items = ''.join('[%s]' % i for i in self.items) if self.items else ''
         return '%s{%s}%s' % (self.identifier, self.base, items)
 
 
@@ -112,11 +174,11 @@ class VariableSearcher(object):
             match.end += sum(len(i) for i in self.items) + 2 * len(self.items)
         return match
 
-    def _search(self, string, offset=0):
+    def _search(self, string):
         start = self._find_variable_start(string)
         if start == -1:
             return False
-        self.start = start + offset
+        self.start = start
         self._open_brackets += 1
         self.variable_chars = [string[start], '{']
         start += 2
@@ -183,11 +245,6 @@ class VariableSearcher(object):
             if self._open_brackets == 0:
                 self.items.append(''.join(self.item_chars))
                 self.item_chars = []
-                # Don't support chained item access with old @ and & syntax.
-                # The old syntax was deprecated in RF 3.2 and in RF 3.3 it'll
-                # be reassigned to mean using item in list/dict context.
-                if self.variable_chars[0] in '@&':
-                    return None
                 return self.waiting_item_state
         elif char == '[' and not self._escaped:
             self._open_brackets += 1
@@ -224,19 +281,19 @@ def unescape_variable_syntax(item):
     return re.sub(r'(\\+)(?=(.+))', handle_escapes, item)
 
 
-# TODO: This is pretty odd/ugly and used only in two places. Implement
-# something better or just remove altogether.
-@py2to3
+@py3to2
 class VariableIterator(object):
 
-    def __init__(self, string, identifiers='$@&%*'):
-        self._string = string
-        self._identifiers = identifiers
+    def __init__(self, string, identifiers='$@&%', ignore_errors=False):
+        self.string = string
+        self.identifiers = identifiers
+        self.ignore_errors = ignore_errors
 
     def __iter__(self):
-        remaining = self._string
+        remaining = self.string
         while True:
-            match = search_variable(remaining, self._identifiers)
+            match = search_variable(remaining, self.identifiers,
+                                    self.ignore_errors)
             if not match:
                 break
             remaining = match.after
@@ -245,7 +302,7 @@ class VariableIterator(object):
     def __len__(self):
         return sum(1 for _ in self)
 
-    def __nonzero__(self):
+    def __bool__(self):
         try:
             next(iter(self))
         except StopIteration:

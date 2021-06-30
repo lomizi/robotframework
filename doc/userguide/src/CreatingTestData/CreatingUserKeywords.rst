@@ -1,7 +1,7 @@
 Creating user keywords
 ======================
 
-Keyword tables are used to create new higher-level keywords by
+Keyword sections are used to create new higher-level keywords by
 combining existing keywords together. These keywords are called *user
 keywords* to differentiate them from lowest level *library keywords*
 that are implemented in test libraries. The syntax for creating user
@@ -19,8 +19,8 @@ Basic syntax
 ~~~~~~~~~~~~
 
 In many ways, the overall user keyword syntax is identical to the
-`test case syntax`_.  User keywords are created in keyword tables
-which differ from test case tables only by the name that is used to
+`test case syntax`_.  User keywords are created in Keyword sections
+which differ from Test Case sections only by the name that is used to
 identify them. User keyword names are in the first column similarly as
 test cases names. Also user keywords are created from keywords, either
 from keywords in test libraries or other user keywords. Keyword names
@@ -51,8 +51,8 @@ and `test suite initialization files`_. Keywords created in resource
 files are available for files using them, whereas other keywords are
 only available in the files where they are created.
 
-Settings in the Keyword table
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Settings in the Keyword section
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 User keywords can have similar settings as `test cases`__, and they
 have the same square bracket syntax separating them from keyword
@@ -84,7 +84,7 @@ this section.
       `[T a g s]` causes an error in Robot Framework 3.2. Possible spaces
       between brackets and the name (e.g. `[ Tags ]`) are still allowed.
 
-__ `Settings in the test case table`_
+__ `Settings in the test case section`_
 __ `User keyword tags`_
 
 .. _User keyword documentation:
@@ -92,8 +92,8 @@ __ `User keyword tags`_
 User keyword name and documentation
 -----------------------------------
 
-The user keyword name is defined in the first column of the user
-keyword table. Of course, the name should be descriptive, and it is
+The user keyword name is defined in the first column of the
+Keyword section. Of course, the name should be descriptive, and it is
 acceptable to have quite long keyword names. Actually, when creating
 use-case-like test cases, the highest-level keywords are often
 formulated as sentences or even paragraphs.
@@ -141,7 +141,7 @@ the `Deprecating keywords`_ section.
 User keyword tags
 -----------------
 
-Starting from Robot Framework 2.9, keywords can also have tags. User keywords
+Both user keywords and `library keywords`_ can have tags. User keyword
 tags can be set with :setting:`[Tags]` setting similarly as `test case tags`_,
 but possible :setting:`Force Tags` and :setting:`Default Tags` setting do not
 affect them. Additionally keyword tags can be specified on the last line of
@@ -229,7 +229,7 @@ the equals sign (`=`) and then the value, for example `${arg}=default`.
 There can be many arguments with defaults, but they all must be given after
 the normal positional arguments. The default value can contain a variable_
 created on `test, suite or global scope`__, but local variables of the keyword
-executor cannot be used. Starting from Robot Framework 3.0, default value can
+executor cannot be used. Default value can
 also be defined based on earlier arguments accepted by the keyword.
 
 .. note:: The syntax for default values is space sensitive. Spaces
@@ -504,7 +504,7 @@ values used when calling the keyword match the correct arguments. This
 is a problem especially if there are multiple arguments and characters
 separating them may also appear in the given values. For example,
 keyword :name:`Select ${city} ${team}` does not work correctly if used
-with city containing too parts like :name:`Select Los Angeles Lakers`.
+with city containing two parts like :name:`Select Los Angeles Lakers`.
 
 An easy solution to this problem is quoting the arguments (e.g.
 :name:`Select "${city}" "${team}"`) and using the keyword in quoted
@@ -750,6 +750,20 @@ specifying those values in different cells after the :setting:`[Return]` setting
 
    Return Three Values
        [Return]    foo    bar    zap
+
+The :setting:`[Return]` setting just defines what the keyword should return after
+all keywords it contains have been executed. Although it is recommended to have it
+at the end of keyword where it logically belongs, its position does not affect how
+it is used. For example, the following keyword works exactly like the one above.
+
+.. sourcecode:: robotframework
+
+   *** Keywords ***
+   Return One Value
+       [Return]    ${value}
+       [Arguments]    ${arg}
+       Do Something    ${arg}
+       ${value} =    Get Some Value
 
 Using special keywords to return
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

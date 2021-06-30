@@ -28,15 +28,22 @@ Explicit modules
     Check Test Case    ${TESTNAME}
 
 Explicit modules are needed with nested modules
+    [Tags]    no-jython-2.7.1
     Check Test Case    ${TESTNAME}
 
 Explicit modules can override builtins
+    Check Test Case    ${TESTNAME}
+
+Explicit modules used in lambda
     Check Test Case    ${TESTNAME}
 
 Custom namespace
     Check Test Case    ${TESTNAME}
 
 Custom namespace is case-sensitive
+    Check Test Case    ${TESTNAME}
+
+Custon namespace used in lambda
     Check Test Case    ${TESTNAME}
 
 Namespace from Get Variables

@@ -18,6 +18,41 @@ Case-insensitive
     ${42}           ${42}           ignore_case=True
     Yötä            Päivää          ignore_case=yep!
 
+Without leading spaces
+    [Documentation]    FAIL test != value
+    ${SPACE}test    test            strip_spaces=leading
+    hyvää yötä      \nhyvää yötä    repr=True    strip_spaces=Leading
+    \t${42}         \t${42}         strip_spaces=LEADING
+    \ntest          \n value        strip_spaces=leading
+
+Without trailing spaces
+    [Documentation]    FAIL test != value
+    test${SPACE}    test            strip_spaces=trailing
+    hyvää yötä      hyvää yötä\t    repr=True    strip_spaces=Trailing
+    ${42}\t         ${42}\n         strip_spaces=TRAILING
+    test\n          value\t         strip_spaces=trailing
+
+Without leading and trailing spaces
+    [Documentation]    FAIL test != value
+    test${SPACE}       test               strip_spaces=True
+    hyvää yötä         hyvää yötä\t       repr=True    strip_spaces=TRUE
+    ${SPACE}${42}\n    ${SPACE}${42}\t    strip_spaces=yeS
+    \n\ test\t         ${SPACE}value\n    strip_spaces=yes
+
+Do not collapse spaces
+    [Documentation]    FAIL repr=True: Yö \ntä != Yö\ttä
+    ${SPACE * 5}test${SPACE * 2}value    ${SPACE * 5}test${SPACE * 2}value    collapse_spaces=False
+    HYVÄÄ\tYÖTÄ${SPACE * 3}              HYVÄÄ\tYÖTÄ${SPACE * 3}              repr=True    collapse_spaces=False
+    ${42}                                ${42}                                collapse_spaces=${FALSE}
+    Yö \ntä                              Yö\ttä                               repr=True    collapse_spaces=False
+
+Collapse spaces
+    [Documentation]    FAIL Yo yo != Oy oy
+    test${SPACE * 4}value${SPACE * 5}    test value${SPACE}    collapse_spaces=True
+    ${SPACE * 5}HYVÄÄ\t\nYÖTÄ            ${SPACE}HYVÄÄ YÖTÄ    repr=True    collapse_spaces=Yes
+    ${42}                                ${42}                 collapse_spaces=${TRUE}
+    Yo${SPACE * 5}yo                     Oy\toy                collapse_spaces=True
+
 Fails with values
     [Documentation]    FAIL Several failures occurred:
     ...
@@ -305,7 +340,78 @@ Should Not Be Equal case-insensitive
     [Template]  Should Not Be Equal
     test value      TEST VALUE1     ignore_case=True
     HYVÄÄ YÖTÄ      hyvää yötä1     ignore_case=True
+    ${42}           ${43}           ignore_case=True
     foo             FOO             ignore_case=True
+
+Should Not Be Equal without leading spaces
+    [Documentation]     FAIL Several failures occurred:
+    ...
+    ...    1) test == test
+    ...
+    ...    2) hyvää yötä == hyvää yötä
+    ...
+    ...    3) 42 == 42
+    [Template]  Should Not Be Equal
+    ${SPACE}test    test            strip_spaces=leading
+    hyvää yötä      \nhyvää yötä    strip_spaces=Leading
+    ${42}           ${42}           strip_spaces=LEADING
+    \t\ntest        \n\tvalue       strip_spaces=leading
+
+Should Not Be Equal without trailing spaces
+    [Documentation]     FAIL Several failures occurred:
+    ...
+    ...    1) test == test
+    ...
+    ...    2) hyvää yötä == hyvää yötä
+    ...
+    ...    3) 42 == 42
+    [Template]  Should Not Be Equal
+    test${SPACE}    test            strip_spaces=trailing
+    hyvää yötä      hyvää yötä\t    strip_spaces=Trailing
+    ${42}           ${42}           strip_spaces=TRAILING
+    test\t\n        value \n        strip_spaces=TraIling
+
+Should Not Be Equal without leading and trailing spaces
+    [Documentation]     FAIL Several failures occurred:
+    ...
+    ...    1) test == test
+    ...
+    ...    2) hyvää yötä == hyvää yötä
+    ...
+    ...    3) 42 == 42
+    [Template]  Should Not Be Equal
+    test${SPACE}    test            strip_spaces=True
+    hyvää yötä      hyvää yötä\t    strip_spaces=TRUE
+    \ test\t\n      \tvalue\t       strip_spaces=yeS
+    ${42}           ${42}           strip_spaces=This probably should be an error.
+
+Should Not Be Equal and do not collapse spaces
+    [Documentation]     FAIL Several failures occurred:
+    ...
+    ...    1) test\tit == test\tit
+    ...
+    ...    2) repr=True: hyvää\ \nyötä == hyvää\ \nyötä
+    ...
+    ...    3) \ \ 42 == \ \ 42
+    [Template]  Should Not Be Equal
+    test\tit         test\tit         collapse_spaces=No
+    hyvää\ \nyötä    hyvää\ \nyötä    repr=True    collapse_spaces=${FALSE}
+    \ test\t\nit     \tvalue\tit      collapse_spaces=${NONE}
+    \ \ ${42}        \ \ ${42}        collapse_spaces=False
+
+Should Not Be Equal and collapse spaces
+    [Documentation]     FAIL Several failures occurred:
+    ...
+    ...    1) test it == test it
+    ...
+    ...    2) repr=True: hyvää yötä == hyvää yötä
+    ...
+    ...    3) \ 42 == \ 42
+    [Template]  Should Not Be Equal
+    test\t\nit       test\ \tit       collapse_spaces=True
+    hyvää\ \ yötä    hyvää\ \ yötä    repr=True    collapse_spaces=${TRUE}
+    \ test\tit       \tvalue it       collapse_spaces=Maybe yes
+    \ \ ${42}        \ \ ${42}        collapse_spaces=TruE
 
 Should Not Be Equal with bytes containing non-ascii characters
     [Documentation]    FAIL ${BYTES WITH NON ASCII} == ${BYTES WITH NON ASCII}

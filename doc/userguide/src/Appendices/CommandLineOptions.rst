@@ -28,8 +28,12 @@ Command line options for test execution
                           `output file`_ to be re-executed.
   -i, --include <tag>     `Selects the test cases`_ by tag.
   -e, --exclude <tag>     `Selects the test cases`_ by tag.
-  -c, --critical <tag>    Tests that have the given tag are `considered critical`_.
-  -n, --noncritical <tag>  Tests that have the given tag are `not critical`_.
+  --skip <tag>            Tests having given tag will be `skipped`_. Tag can be a pattern.
+                          New in RF 4.0.
+  --skiponfailure <tag>   Tests having given tag will be `skipped`_ if they fail.
+                          New in RF 4.0.
+  -c, --critical <tag>    Opposite of --noncritical. Deprecated since RF 4.0.
+  -n, --noncritical <tag>  Alias for --skiponfailure. Deprecated since RF 4.0.
   -v, --variable <name:value>   Sets `individual variables`_.
   -V, --variablefile <path:args>  Sets variables using `variable files`_.
   -d, --outputdir <dir>   Defines where to `create output files`_.
@@ -37,7 +41,7 @@ Command line options for test execution
   -l, --log <file>        Sets the path to the generated `log file`_.
   -r, --report <file>     Sets the path to the generated `report file`_.
   -x, --xunit <file>      Sets the path to the generated `xUnit compatible result file`_.
-  --xunitskipnoncritical  Mark non-critical tests on `xUnit compatible result file`_ as skipped.
+  --xunitskipnoncritical  Deprecated since RF 4.0 and has no effect anymore.
   -b, --debugfile <file>  A `debug file`_ that is written during execution.
   -T, --timestampoutputs  `Adds a timestamp`_ to all output files.
   --splitlog              `Split log file`_ into smaller pieces that open in
@@ -56,6 +60,8 @@ Command line options for test execution
   --tagstatcombine <tags:title>  Creates `combined statistics based on tags`_.
   --tagdoc <pattern:doc>  Adds `documentation to the specified tags`_.
   --tagstatlink <pattern:link:title>  Adds `external links`_ to the *Statistics by Tag* table.
+  --expandkeywords <name:pattern|tag:pattern>  Automatically `expand keywords`_
+                          in the generated log file.
   --removekeywords <all|passed|name:pattern|tag:pattern|for|wuks>  `Removes keyword data`_
                           from the generated log file.
   --flattenkeywords <for|foritem|name:pattern|tag:pattern>  `Flattens keywords`_
@@ -101,14 +107,14 @@ Command line options for post-processing outputs
   -s, --suite <name>      `Selects the test suites`_ by name.
   -i, --include <tag>     `Selects the test cases`_ by tag.
   -e, --exclude <tag>     `Selects the test cases`_ by tag.
-  -c, --critical <tag>    Tests that have the given tag are `considered critical`_.
-  -n, --noncritical <tag>  Tests that have the given tag are `not critical`_.
+  -c, --critical <tag>    Deprecated since RF 4.0 and has no effect anymore.
+  -n, --noncritical <tag>  Deprecated since RF 4.0 and has no effect anymore.
   -d, --outputdir <dir>   Defines where to `create output files`_.
   -o, --output <file>     Sets the path to the generated `output file`_.
   -l, --log <file>        Sets the path to the generated `log file`_.
   -r, --report <file>     Sets the path to the generated `report file`_.
   -x, --xunit <file>      Sets the path to the generated `xUnit compatible result file`_.
-  --xunitskipnoncritical  Mark non-critical tests on `xUnit compatible result file`_ as skipped.
+  --xunitskipnoncritical  Deprecated since RF 4.0 and has no effect anymore.
   -T, --timestampoutputs  `Adds a timestamp`_ to all output files.
   --splitlog              `Split log file`_ into smaller pieces that open in
                           browser transparently.
@@ -125,6 +131,8 @@ Command line options for post-processing outputs
   --tagstatcombine <tags:title>  Creates `combined statistics based on tags`_.
   --tagdoc <pattern:doc>  Adds `documentation to the specified tags`_.
   --tagstatlink <pattern:link:title>  Adds `external links`_ to the *Statistics by Tag* table.
+  --expandkeywords <name:pattern|tag:pattern>  Automatically `expand keywords`_
+                          in the generated log file.
   --removekeywords <all|passed|name:pattern|tag:pattern|for|wuks>  `Removes keyword data`_
                           from the generated outputs.
   --flattenkeywords <for|foritem|name:pattern|tag:pattern>  `Flattens keywords`_
@@ -155,8 +163,6 @@ Command line options for post-processing outputs
 .. _Selects failed test suites: `Re-executing failed test suites`_
 .. _Selects failed tests: `Re-executing failed test cases`_
 .. _Selects the test cases: `By tag names`_
-.. _considered critical: `Setting criticality`_
-.. _not critical: `considered critical`_
 .. _ContinueOnFailure: `Continue on failure`_
 .. _Skips teardowns: `Handling Teardowns`_
 .. _SkipTeardownOnExit: `Handling Teardowns`_
@@ -189,6 +195,7 @@ Command line options for post-processing outputs
 .. _usage instructions: `Getting help and version information`_
 .. _version information: `usage instructions`_
 
+.. _expand keywords: `Automatically expanding keywords`_
 .. _Removes keyword data: `Removing and flattening keywords`_
 .. _Flattens keywords: `Removes keyword data`_
 .. _starting time: `Setting start and end time of execution`_

@@ -9,6 +9,15 @@ Integer
 Integer as float
     Check Test Case    ${TESTNAME}
 
+Integer as hex
+    Check Test Case    ${TESTNAME}
+
+Integer as octal
+    Check Test Case    ${TESTNAME}
+
+Integer as binary
+    Check Test Case    ${TESTNAME}
+
 Invalid integer
     Check Test Case    ${TESTNAME}
 
@@ -69,6 +78,10 @@ Enum
     [Tags]    require-enum
     Check Test Case    ${TESTNAME}
 
+IntEnum
+    [Tags]    require-enum
+    Check Test Case    ${TESTNAME}
+
 Invalid enum
     Check Test Case    ${TESTNAME}
 
@@ -112,9 +125,6 @@ Sets are not supported in Python 2
     Check Test Case    ${TESTNAME}
 
 Unknown types are not converted
-    Check Test Case    ${TESTNAME}
-
-String None is converted to None object
     Check Test Case    ${TESTNAME}
 
 Positional as named

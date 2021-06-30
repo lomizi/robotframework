@@ -136,6 +136,18 @@ All code, including test code, must be compatible with all supported Python
 interpreters and versions. Most importantly this means that the code must
 support both Python 2 and Python 3.
 
+Line length
+'''''''''''
+
+Maximum line length with Python code, including docstrings and comments, is 88
+characters. This is also what `Black <https://pypi.org/project/black/>`__ uses
+by default and `their documentation
+<https://black.readthedocs.io/en/stable/the_black_code_style.html#line-length>`__
+explains why. Notice that we do not have immediate plans to actually take Black
+into use but we may consider that later.
+
+With Robot Framework tests the maximum line length is 100.
+
 Whitespace
 ''''''''''
 
@@ -143,6 +155,8 @@ We are pretty picky about using whitespace. We follow `PEP-8`_ in how to use
 blank lines and whitespace in general, but we also have some stricter rules:
 
 - No blank lines inside functions.
+- No blank lines between a class declaration and class attributes or between
+  attributes.
 - Indentation using spaces, not tabs.
 - No trailing spaces.
 - No extra empty lines at the end of the file.
@@ -279,39 +293,3 @@ Unit tests
 
 Unit tests are great for testing internal logic and should be added when
 appropriate. For more details see `<utest/README.rst>`_.
-
-Finalizing pull requests
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-Once you have code, documentation and tests ready, it is time to finalize
-the pull request.
-
-AUTHORS.txt
-'''''''''''
-
-If you have done any non-trivial change and would like to be credited,
-add yourself to `<AUTHORS.txt>`_ file.
-
-Resolving conflicts
-'''''''''''''''''''
-
-Conflicts can occur if there are new changes to the master that touch the
-same code as your changes. In that case you should `sync your fork
-<https://help.github.com/articles/syncing-a-fork>`_ and `resolve conflicts
-<https://help.github.com/articles/resolving-a-merge-conflict-from-the-command-line>`_
-to allow for an easy merge.
-
-The most common conflicting file is the aforementioned `AUTHORS.txt`_, but
-luckily fixing those conflicts is typically easy.
-
-Squashing commits
-'''''''''''''''''
-
-If the pull request contains multiple commits, you may want to `squash them
-into a single commit`__ before the pull request is merged. This is a good idea
-especially if the pull request contains lots of temporary commits and changes
-that have been later reverted or redone. Nowadays GitHub makes it easy to
-squash commits when the pull request is merged, so squashing them beforehand
-is not that important.
-
-__ http://eli.thegreenplace.net/2014/02/19/squashing-github-pull-requests-into-a-single-commit

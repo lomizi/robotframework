@@ -13,67 +13,68 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import ast
+from ast import NodeVisitor
 
+from robot.parsing import Token
 from robot.variables import VariableIterator
 
-from ..model import ForLoop, Keyword
 from .testsettings import TestSettings
 
 
-def fixture(node, fixture_type):
-    if node.name is None:
-        return None
-    return Keyword(node.name, args=node.args, type=fixture_type)
-
-
-class SettingsBuilder(ast.NodeVisitor):
+class SettingsBuilder(NodeVisitor):
 
     def __init__(self, suite, test_defaults):
         self.suite = suite
         self.test_defaults = test_defaults
 
-    def visit_DocumentationSetting(self, node):
+    def visit_Documentation(self, node):
         self.suite.doc = node.value
 
-    def visit_MetadataSetting(self, node):
+    def visit_Metadata(self, node):
         self.suite.metadata[node.name] = node.value
 
-    def visit_SuiteSetupSetting(self, node):
-        self.suite.keywords.setup = fixture(node, Keyword.SETUP_TYPE)
+    def visit_SuiteSetup(self, node):
+        self.suite.setup.config(name=node.name, args=node.args,
+                                lineno=node.lineno)
 
-    def visit_SuiteTeardownSetting(self, node):
-        self.suite.keywords.teardown = fixture(node, Keyword.TEARDOWN_TYPE)
+    def visit_SuiteTeardown(self, node):
+        self.suite.teardown.config(name=node.name, args=node.args,
+                                   lineno=node.lineno)
 
-    def visit_TestSetupSetting(self, node):
-        self.test_defaults.setup = fixture(node, Keyword.SETUP_TYPE)
+    def visit_TestSetup(self, node):
+        self.test_defaults.setup = {
+            'name': node.name, 'args': node.args, 'lineno': node.lineno
+        }
 
-    def visit_TestTeardownSetting(self, node):
-        self.test_defaults.teardown = fixture(node, Keyword.TEARDOWN_TYPE)
+    def visit_TestTeardown(self, node):
+        self.test_defaults.teardown = {
+            'name': node.name, 'args': node.args, 'lineno': node.lineno
+        }
 
-    def visit_TestTimeoutSetting(self, node):
+    def visit_TestTimeout(self, node):
         self.test_defaults.timeout = node.value
 
-    def visit_DefaultTagsSetting(self, node):
+    def visit_DefaultTags(self, node):
         self.test_defaults.default_tags = node.values
 
-    def visit_ForceTagsSetting(self, node):
+    def visit_ForceTags(self, node):
         self.test_defaults.force_tags = node.values
 
-    def visit_TestTemplateSetting(self, node):
+    def visit_TestTemplate(self, node):
         self.test_defaults.template = node.value
 
-    def visit_ResourceSetting(self, node):
+    def visit_ResourceImport(self, node):
         self.suite.resource.imports.create(type='Resource', name=node.name,
-                                           args=node.args)
+                                           lineno=node.lineno)
 
-    def visit_LibrarySetting(self, node):
+    def visit_LibraryImport(self, node):
         self.suite.resource.imports.create(type='Library', name=node.name,
-                                           args=node.args, alias=node.alias)
+                                           args=node.args, alias=node.alias,
+                                           lineno=node.lineno)
 
-    def visit_VariablesSetting(self, node):
+    def visit_VariablesImport(self, node):
         self.suite.resource.imports.create(type='Variables', name=node.name,
-                                           args=node.args)
+                                           args=node.args, lineno=node.lineno)
 
     def visit_VariableSection(self, node):
         pass
@@ -85,11 +86,20 @@ class SettingsBuilder(ast.NodeVisitor):
         pass
 
 
-class SuiteBuilder(ast.NodeVisitor):
+class SuiteBuilder(NodeVisitor):
 
     def __init__(self, suite, test_defaults):
         self.suite = suite
         self.test_defaults = test_defaults
+
+    def visit_SettingSection(self, node):
+        pass
+
+    def visit_Variable(self, node):
+        self.suite.resource.variables.create(name=node.name,
+                                             value=node.value,
+                                             lineno=node.lineno,
+                                             error=format_error(node.errors))
 
     def visit_TestCase(self, node):
         TestCaseBuilder(self.suite, self.test_defaults).visit(node)
@@ -97,39 +107,39 @@ class SuiteBuilder(ast.NodeVisitor):
     def visit_Keyword(self, node):
         KeywordBuilder(self.suite.resource).visit(node)
 
-    def visit_Variable(self, node):
-        self.suite.resource.variables.create(name=node.name, value=node.value)
 
-
-class ResourceBuilder(ast.NodeVisitor):
+class ResourceBuilder(NodeVisitor):
 
     def __init__(self, resource):
         self.resource = resource
 
-    def visit_ResourceSetting(self, node):
-        self.resource.imports.create(type='Resource', name=node.name,
-                                     args=node.args)
+    def visit_Documentation(self, node):
+        self.resource.doc = node.value
 
-    def visit_LibrarySetting(self, node):
+    def visit_LibraryImport(self, node):
         self.resource.imports.create(type='Library', name=node.name,
-                                     args=node.args, alias=node.alias)
+                                     args=node.args, alias=node.alias,
+                                     lineno=node.lineno)
 
+    def visit_ResourceImport(self, node):
+        self.resource.imports.create(type='Resource', name=node.name,
+                                     lineno=node.lineno)
 
-    def visit_VariablesSetting(self, node):
+    def visit_VariablesImport(self, node):
         self.resource.imports.create(type='Variables', name=node.name,
-                                     args=node.args)
+                                     args=node.args, lineno=node.lineno)
+
+    def visit_Variable(self, node):
+        self.resource.variables.create(name=node.name,
+                                       value=node.value,
+                                       lineno=node.lineno,
+                                       error=format_error(node.errors))
 
     def visit_Keyword(self, node):
         KeywordBuilder(self.resource).visit(node)
 
-    def visit_Variable(self, node):
-        self.resource.variables.create(name=node.name, value=node.value)
 
-    def visit_DocumentationSetting(self, node):
-        self.resource.doc = node.value
-
-
-class TestCaseBuilder(ast.NodeVisitor):
+class TestCaseBuilder(NodeVisitor):
 
     def __init__(self, suite, defaults):
         self.suite = suite
@@ -137,13 +147,13 @@ class TestCaseBuilder(ast.NodeVisitor):
         self.test = None
 
     def visit_TestCase(self, node):
-        self.test = self.suite.tests.create(name=node.name)
+        self.test = self.suite.tests.create(name=node.name, lineno=node.lineno)
         self.generic_visit(node)
         self._set_settings(self.test, self.settings)
 
     def _set_settings(self, test, settings):
-        test.keywords.setup = settings.setup
-        test.keywords.teardown = settings.teardown
+        test.setup.config(**settings.setup)
+        test.teardown.config(**settings.teardown)
         test.timeout = settings.timeout
         test.tags = settings.tags
         if settings.template:
@@ -151,59 +161,65 @@ class TestCaseBuilder(ast.NodeVisitor):
             self._set_template(test, settings.template)
 
     def _set_template(self, parent, template):
-        for kw in parent.keywords:
-            if kw.type == kw.FOR_LOOP_TYPE:
-                self._set_template(kw, template)
-            elif kw.type == kw.KEYWORD_TYPE:
-                name, args = self._format_template(template, kw.args)
-                kw.name = name
-                kw.args = args
+        for item in parent.body:
+            if item.type == item.FOR:
+                self._set_template(item, template)
+            elif item.type == item.IF_ELSE_ROOT:
+                for branch in item.body:
+                    self._set_template(branch, template)
+            elif item.type == item.KEYWORD:
+                name, args = self._format_template(template, item.args)
+                item.name = name
+                item.args = args
 
-    def _format_template(self, template, args):
-        iterator = VariableIterator(template, identifiers='$')
-        variables = len(iterator)
-        if not variables or variables != len(args):
-            return template, tuple(args)
+    def _format_template(self, template, arguments):
+        variables = VariableIterator(template, identifiers='$')
+        count = len(variables)
+        if count == 0 or count != len(arguments):
+            return template, arguments
         temp = []
-        for before, variable, after in iterator:
-            temp.extend([before, args.pop(0)])
+        for (before, _, after), arg in zip(variables, arguments):
+            temp.extend([before, arg])
         temp.append(after)
         return ''.join(temp), ()
 
-    def visit_ForLoop(self, node):
-        # Header and end used only for deprecation purposes. Remove in RF 3.3!
-        loop = ForLoop(node.variables, node.values, node.flavor,
-                       node._header, node._end)
-        ForLoopBuilder(loop).visit(node)
-        self.test.keywords.append(loop)
+    def visit_For(self, node):
+        ForBuilder(self.test).build(node)
+
+    def visit_If(self, node):
+        IfBuilder(self.test).build(node)
 
     def visit_TemplateArguments(self, node):
-        self.test.keywords.create(args=node.args)
+        self.test.body.create_keyword(args=node.args, lineno=node.lineno)
 
-    def visit_DocumentationSetting(self, node):
+    def visit_Documentation(self, node):
         self.test.doc = node.value
 
-    def visit_SetupSetting(self, node):
-        self.settings.setup = fixture(node, Keyword.SETUP_TYPE)
+    def visit_Setup(self, node):
+        self.settings.setup = {
+            'name': node.name, 'args': node.args, 'lineno': node.lineno
+        }
 
-    def visit_TeardownSetting(self, node):
-        self.settings.teardown = fixture(node, Keyword.TEARDOWN_TYPE)
+    def visit_Teardown(self, node):
+        self.settings.teardown = {
+            'name': node.name, 'args': node.args, 'lineno': node.lineno
+        }
 
-    def visit_TimeoutSetting(self, node):
+    def visit_Timeout(self, node):
         self.settings.timeout = node.value
 
-    def visit_TagsSetting(self, node):
+    def visit_Tags(self, node):
         self.settings.tags = node.values
 
-    def visit_TemplateSetting(self, node):
+    def visit_Template(self, node):
         self.settings.template = node.value
 
     def visit_KeywordCall(self, node):
-        self.test.keywords.create(name=node.keyword, args=node.args,
-                                  assign=node.assign)
+        self.test.body.create_keyword(name=node.keyword, args=node.args,
+                                      assign=node.assign, lineno=node.lineno)
 
 
-class KeywordBuilder(ast.NodeVisitor):
+class KeywordBuilder(NodeVisitor):
 
     def __init__(self, resource):
         self.resource = resource
@@ -211,48 +227,120 @@ class KeywordBuilder(ast.NodeVisitor):
         self.teardown = None
 
     def visit_Keyword(self, node):
-        self.kw = self.resource.keywords.create(name=node.name)
+        self.kw = self.resource.keywords.create(name=node.name,
+                                                lineno=node.lineno)
         self.generic_visit(node)
-        self.kw.keywords.teardown = self.teardown
+        if self.teardown is not None:
+            self.kw.teardown.config(**self.teardown)
 
-    def visit_DocumentationSetting(self, node):
+    def visit_Documentation(self, node):
         self.kw.doc = node.value
 
-    def visit_ArgumentsSetting(self, node):
+    def visit_Arguments(self, node):
         self.kw.args = node.values
 
-    def visit_TagsSetting(self, node):
+    def visit_Tags(self, node):
         self.kw.tags = node.values
 
-    def visit_ReturnSetting(self, node):
+    def visit_Return(self, node):
         self.kw.return_ = node.values
 
-    def visit_TimeoutSetting(self, node):
+    def visit_Timeout(self, node):
         self.kw.timeout = node.value
 
-    def visit_TeardownSetting(self, node):
-        self.teardown = fixture(node, Keyword.TEARDOWN_TYPE)
+    def visit_Teardown(self, node):
+        self.teardown = {
+            'name': node.name, 'args': node.args, 'lineno': node.lineno
+        }
 
     def visit_KeywordCall(self, node):
-        self.kw.keywords.create(name=node.keyword, args=node.args,
-                                assign=node.assign)
+        self.kw.body.create_keyword(name=node.keyword, args=node.args,
+                                    assign=node.assign, lineno=node.lineno)
 
-    def visit_ForLoop(self, node):
-        # Header and end used only for deprecation purposes. Remove in RF 3.3!
-        loop = ForLoop(node.variables, node.values, node.flavor,
-                       node._header, node._end)
-        ForLoopBuilder(loop).visit(node)
-        self.kw.keywords.append(loop)
+    def visit_For(self, node):
+        ForBuilder(self.kw).build(node)
+
+    def visit_If(self, node):
+        IfBuilder(self.kw).build(node)
 
 
-class ForLoopBuilder(ast.NodeVisitor):
+class ForBuilder(NodeVisitor):
 
-    def __init__(self, for_loop):
-        self.for_loop = for_loop
+    def __init__(self, parent):
+        self.parent = parent
+        self.model = None
+
+    def build(self, node):
+        error = format_error(self._get_errors(node))
+        self.model = self.parent.body.create_for(
+            node.variables, node.flavor, node.values, lineno=node.lineno, error=error
+        )
+        for step in node.body:
+            self.visit(step)
+        return self.model
+
+    def _get_errors(self, node):
+        errors = node.header.errors + node.errors
+        if node.end:
+            errors += node.end.errors
+        return errors
 
     def visit_KeywordCall(self, node):
-        self.for_loop.keywords.create(name=node.keyword, args=node.args,
-                                      assign=node.assign)
+        self.model.body.create_keyword(name=node.keyword, args=node.args,
+                                       assign=node.assign, lineno=node.lineno)
 
     def visit_TemplateArguments(self, node):
-        self.for_loop.keywords.create(args=node.args)
+        self.model.body.create_keyword(args=node.args, lineno=node.lineno)
+
+    def visit_For(self, node):
+        ForBuilder(self.model).build(node)
+
+    def visit_If(self, node):
+        IfBuilder(self.model).build(node)
+
+
+class IfBuilder(NodeVisitor):
+
+    def __init__(self, parent):
+        self.parent = parent
+        self.model = None
+
+    def build(self, node):
+        model = self.parent.body.create_if(lineno=node.lineno,
+                                           error=format_error(self._get_errors(node)))
+        while node:
+            self.model = model.body.create_branch(node.type, node.condition,
+                                                  lineno=node.lineno)
+            for step in node.body:
+                self.visit(step)
+            node = node.orelse
+        return model
+
+    def _get_errors(self, node):
+        errors = node.header.errors + node.errors
+        if node.orelse:
+            errors += self._get_errors(node.orelse)
+        if node.end:
+            errors += node.end.errors
+        return errors
+
+    def visit_KeywordCall(self, node):
+        self.model.body.create_keyword(name=node.keyword, args=node.args,
+                                       assign=node.assign, lineno=node.lineno)
+
+    def visit_TemplateArguments(self, node):
+        self.model.body.create_keyword(args=node.args, lineno=node.lineno)
+
+    def visit_If(self, node):
+        IfBuilder(self.model).build(node)
+
+    def visit_For(self, node):
+        ForBuilder(self.model).build(node)
+
+
+def format_error(errors):
+    if not errors:
+        return None
+    if len(errors) == 1:
+        return errors[0]
+    return '\n- '.join(('Multiple errors:',) + errors)

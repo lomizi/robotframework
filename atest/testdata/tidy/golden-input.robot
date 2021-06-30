@@ -19,6 +19,7 @@ MyVar             val1    val2    val3    val4    val5    val6          val7
 # standalone
 
 * Test cases
+# A comment before first test
 My Test Case
     [Documentation]    This is a documentation
     ...    in two lines
@@ -53,6 +54,25 @@ My Keyword
         ...    args 6    args 7    args 8    args 9    # loop step comment
     Loop Step 2
     END
+
+    IF    True
+        Log    Hi!
+        FOR    ${var}    IN    one    two
+        IF    "${var}" == "one"
+        Log    ${var} is one!
+    END
+    No Operation
+    END
+
+    ELSE IF    False
+
+      Fail           Not run
+
+            ELSE
+            Fail    Not run
+
+    END
+
         My Step 2       my step 2 arg       second arg       # step 2 comment
 
 

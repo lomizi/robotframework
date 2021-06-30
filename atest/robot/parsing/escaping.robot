@@ -39,10 +39,8 @@ Backslash
 New Line
     Check Test Case    ${TEST NAME}
 
-Ignoring Space After Newline Is Deprecated
+Space After Newline Is parsed
     Check Test Case    ${TEST NAME}
-    Check log message    ${ERRORS}[0]    Ignoring space after '\\n' is deprecated.    WARN
-    Check log message    ${ERRORS}[1]    Ignoring space after '\\n' is deprecated.    WARN
 
 Carrriage Return
     Check Test Case    ${TEST NAME}
@@ -50,25 +48,25 @@ Carrriage Return
 Tabulator
     Check Test Case    ${TEST NAME}
 
-Valid \x Escape
+Valid \\x Escape
     Check Test Case    ${TEST NAME}
 
-Invalid \x Escape
+Invalid \\x Escape
     Check Test Case    ${TEST NAME}
 
-Valid \u Escape
+Valid \\u Escape
     Check Test Case    ${TEST NAME}
 
-Invalid \u Escape
+Invalid \\u Escape
     Check Test Case    ${TEST NAME}
 
-Valid \U (32bit) Escape
+Valid \\U (32bit) Escape
     Check Test Case    ${TEST NAME}
 
-Invalid \U (32bit) Escape
+Invalid \\U (32bit) Escape
     Check Test Case    ${TEST NAME}
 
-\U (32bit) Escape Above Valid Range
+\\U (32bit) Escape Above Valid Range
     Check Test Case    ${TEST NAME}
 
 Hash
@@ -84,7 +82,7 @@ Escaping Variables With User Keywords
     Check Test Case    ${TEST NAME}
 
 No Errors Should Have Occurred
-    Length should be      ${ERRORS}    2    # Warnings due to '\n ' deprecation.
+    Length should be      ${ERRORS}    0
 
 Pipe
     Check Test Case    ${TEST NAME}

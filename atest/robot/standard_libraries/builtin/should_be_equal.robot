@@ -14,6 +14,21 @@ Basics
 Case-insensitive
     Check Test Case     ${TESTNAME}
 
+Without leading spaces
+    Check Test Case     ${TESTNAME}
+
+Without trailing spaces
+    Check Test Case     ${TESTNAME}
+
+Without leading and trailing spaces
+    Check Test Case     ${TESTNAME}
+
+Do not collapse spaces
+    Check Test Case     ${TESTNAME}
+
+Collapse spaces
+    Check Test Case     ${TESTNAME}
+
 Fails with values
     Check test case    ${TESTNAME}
 
@@ -91,6 +106,21 @@ Should Not Be Equal
     Verify argument type message    ${tc.kws[2].msgs[0]}    unicode    unicode
 
 Should Not Be Equal case-insensitive
+    Check Test Case     ${TESTNAME}
+
+Should Not Be Equal without leading spaces
+    Check Test Case     ${TESTNAME}
+
+Should Not Be Equal without trailing spaces
+    Check Test Case     ${TESTNAME}
+
+Should Not Be Equal without leading and trailing spaces
+    Check Test Case     ${TESTNAME}
+
+Should Not Be Equal and do not collapse spaces
+    Check Test Case     ${TESTNAME}
+
+Should Not Be Equal and collapse spaces
     Check Test Case     ${TESTNAME}
 
 Should Not Be Equal with bytes containing non-ascii characters

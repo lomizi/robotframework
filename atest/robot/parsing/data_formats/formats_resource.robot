@@ -25,7 +25,7 @@ Run Sample File And Check Tests
     Should Be Equal    ${SUITE.name}    Sample
     Should Be Equal    ${SUITE.doc}    A complex testdata file in ${type} format.
     Check Log Message    ${SUITE.setup.messages[0]}    Setup
-    Should Be Equal    ${SUITE.teardown}    ${None}
+    Teardown Should Not Be Defined    ${SUITE}
     Should Contain Tests    ${SUITE}    @{sample_tests}
     Check Test Tags    Own Tags    force1    force2    own1    own2
     Check Test Tags    Default Tags    default1    force1    force2
@@ -35,7 +35,7 @@ Run Sample File And Check Tests
     Should Be Equal    ${test.kws[0].timeout}    2 milliseconds
     Check Test Doc    Document    Testing the metadata parsing.
     ${test} =    Check Test Case    Default Fixture
-    Should Be Equal    ${test.setup}    ${None}
+    Setup Should Not Be Defined     ${test}
     Check Log Message    ${test.teardown.messages[0]}    Test Teardown
     ${test} =    Check Test Case    Overridden Fixture
     Check Log Message    ${test.setup.messages[0]}    Own Setup    INFO
@@ -51,15 +51,15 @@ Run Suite Dir And Check Results
     Should Contain Suites    ${SUITE.suites[1]}    Sub Suite1    Sub Suite2
     Should Contain Tests    ${SUITE}    @{SAMPLE_TESTS}    @{SUBSUITE_TESTS}
     ${path} =    Normalize Path    ${path}
-    Check Syslog Contains    | INFO \ | Data source '${path}${/}invalid.${type}' has no tests or tasks.
-    Check Syslog Contains    | INFO \ | Data source '${path}${/}empty.${type}' has no tests or tasks.
-    Check Syslog Contains    | INFO \ | Ignoring file or directory '${path}${/}not_a_picture.jpg'.
+    Syslog Should Contain    | INFO \ | Data source '${path}${/}invalid.${type}' has no tests or tasks.
+    Syslog Should Contain    | INFO \ | Data source '${path}${/}empty.${type}' has no tests or tasks.
+    Syslog Should Contain    | INFO \ | Ignoring file or directory '${path}${/}not_a_picture.jpg'.
 
 Check Suite With Init
     [Arguments]    ${suite}
     Should Be Equal    ${suite.name}    With Init
     Should Be Equal    ${suite.doc}    Testing suite init file
     Check Log Message    ${suite.setup.kws[0].messages[0]}    Running suite setup
-    Should Be Equal    ${suite.teardown}    ${None}
+    Teardown Should Not Be Defined    ${suite}
     Should Contain Suites    ${suite}    Sub Suite1    Sub Suite2
     Should Contain Tests    ${suite}    @{SUBSUITE_TESTS}

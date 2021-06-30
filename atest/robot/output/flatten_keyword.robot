@@ -3,7 +3,12 @@ Suite Setup     Run And Rebot Flattened
 Resource        atest_resource.robot
 
 *** Variables ***
-${FLATTEN}      --FlattenKeywords NAME:Keyword3 --flat name:key*others --FLAT name:builtin.* --flat TAG:flattenNOTkitty --log log.html
+${FLATTEN}      --FlattenKeywords NAME:Keyword3
+...             --flat name:key*others
+...             --FLAT name:builtin.*
+...             --flat TAG:flattenNOTkitty
+...             --flatten "name:Flatten IF in keyword"
+...             --log log.html
 ${FLAT TEXT}    _*Keyword content flattened.*_
 ${FLAT HTML}    <p><i><b>Keyword content flattened.\\x3c/b>\\x3c/i>\\x3c/p>
 ${ERROR}        [ ERROR ] Invalid value for option '--flattenkeywords'. Expected 'FOR', 'FORITEM', 'TAG:<pattern>', or 'NAME:<pattern>' but got 'invalid'.${USAGE TIP}\n
@@ -55,10 +60,22 @@ Flattened in log after execution
     Should Contain    ${LOG}    *${FLAT HTML}
     Should Contain    ${LOG}    *<p>Logs the given message with the given level.\\x3c/p>\\n${FLAT HTML}
 
+Flatten IF in keyword
+    ${tc} =    Check Test Case    ${TEST NAME}
+    Length Should Be    ${tc.body[0].body.filter(keywords=True, ifs=True)}    0
+    Length Should Be    ${tc.body[0].body.filter(messages=True)}    7
+    Length Should Be    ${tc.body[0].body}    7
+    @{expected} =    Create List
+    ...    Outside IF    Inside IF    Nested IF
+    ...    3    2    1    BANG!
+    FOR    ${msg}    ${exp}    IN ZIP    ${tc.body[0].body}    ${expected}
+        Check Log Message    ${msg}    ${exp}
+    END
+
 Flatten for loops
     Run Rebot    --flatten For    ${OUTFILE COPY}
     ${tc} =    Check Test Case    For loop
-    Should Be Equal    ${tc.kws[0].type}    for
+    Should Be Equal    ${tc.kws[0].type}    FOR
     Should Be Equal    ${tc.kws[0].doc}    ${FLAT TEXT}
     Length Should Be    ${tc.kws[0].kws}    0
     Length Should Be    ${tc.kws[0].msgs}    60
@@ -71,15 +88,15 @@ Flatten for loops
         Check Log Message    ${tc.kws[0].msgs[${index * 6 + 5}]}    1
     END
 
-Flatten for loop items
+Flatten for loop iterations
     Run Rebot    --flatten ForItem    ${OUTFILE COPY}
     ${tc} =    Check Test Case    For loop
-    Should Be Equal    ${tc.kws[0].type}    for
+    Should Be Equal    ${tc.kws[0].type}    FOR
     Should Be Empty    ${tc.kws[0].doc}
     Length Should Be    ${tc.kws[0].kws}    10
     Should Be Empty    ${tc.kws[0].msgs}
     FOR    ${index}    IN RANGE    10
-        Should Be Equal      ${tc.kws[0].kws[${index}].type}    foritem
+        Should Be Equal      ${tc.kws[0].kws[${index}].type}    FOR ITERATION
         Should Be Equal      ${tc.kws[0].kws[${index}].doc}    ${FLAT TEXT}
         Should Be Empty      ${tc.kws[0].kws[${index}].kws}
         Length Should Be     ${tc.kws[0].kws[${index}].msgs}    6

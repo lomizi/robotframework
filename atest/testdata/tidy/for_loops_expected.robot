@@ -4,21 +4,23 @@ For loop in test
         Log    ${x}
     END
 
-Old for loop in test
+Missing END
     FOR    ${x}    IN    foo    bar
         Log    ${x}
+        Keyword
     END
-    FOR    ${x}    IN    quux    zap
-        Log    ${x}
+
+Nested loop
+    FOR    ${x}    IN    x
+        FOR    ${y}    IN    y
+            FOR    ${z}    IN    z
+                Log    ${x}${y}${z}
+            END
+        END
     END
 
 *** Keywords ***
 For loop in keyword
-    FOR    ${x}    IN    foo    bar
-        Log    ${x}
-    END
-
-Old for loop in keyword
     FOR    ${x}    IN    foo    bar
         Log    ${x}
     END

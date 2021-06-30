@@ -1,5 +1,6 @@
 *** Settings ***
 Suite Setup      Run Tests    ${EMPTY}    parsing/non_ascii_spaces.robot
+Force Tags       no-jython-2.7.0    no-jython-2.7.1
 Resource         atest_resource.robot
 
 *** Test Cases ***
@@ -36,3 +37,7 @@ In WITH NAME
 
 In FOR separator
     Check Test Case    ${TESTNAME}
+
+In ELSE IF
+    ${tc} =    Check Test Case    ${TESTNAME}
+    Check Log Message    ${tc.body[0].body[3].body[0].msgs[0]}    Should be executed
